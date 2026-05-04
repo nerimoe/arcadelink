@@ -472,13 +472,13 @@ apps/worker/src/crypto.ts
 密码哈希：
 
 - PBKDF2-SHA256
-- 210000 iterations
+- 100000 iterations。Cloudflare Workers WebCrypto 当前不支持高于 100000 的 PBKDF2 iteration。
 - 每个密码独立随机 salt
 
 存储格式：
 
 ```text
-pbkdf2_sha256$210000$salt$hash
+pbkdf2_sha256$100000$salt$hash
 ```
 
 ### 7.2 Session
