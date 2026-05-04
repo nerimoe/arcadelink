@@ -1,0 +1,3 @@
+SESSION_SECRET=dev-session-secret-change-me
+URL_ENCRYPTION_KEY=dev-url-encryption-key-change-me
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA

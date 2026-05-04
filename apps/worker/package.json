@@ -1,0 +1,26 @@
+{
+  "name": "@arcadelink/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "deploy": "wrangler deploy",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "types:worker": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply arcadelink --local",
+    "db:migrate": "wrangler d1 migrations apply arcadelink --remote"
+  },
+  "dependencies": {
+    "hono": "^4.7.11",
+    "zod": "^3.25.56"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.19",
+    "@types/node": "^25.6.0",
+    "vitest": "^3.1.4",
+    "wrangler": "^4.18.0"
+  }
+}
