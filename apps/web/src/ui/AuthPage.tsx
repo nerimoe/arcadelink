@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Lock, Mail } from "lucide-react";
+import { Gamepad2, Lock, Mail } from "lucide-react";
 import { Api } from "../api";
 import { useAuth } from "./AuthContext";
 import { Turnstile } from "./Turnstile";
@@ -13,7 +13,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [password, setPassword] = useState("");
   const [siteKey, setSiteKey] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | undefined>();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => new URLSearchParams(location.search).get("error"));
   const [busy, setBusy] = useState(false);
   const isLogin = mode === "login";
   const redirectTo = new URLSearchParams(location.search).get("next") || "/cards";
@@ -78,6 +78,15 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             {busy ? "处理中..." : isLogin ? "登录" : "创建账号"}
           </button>
         </form>
+        {isLogin && (
+          <a
+            className="focus-ring mt-3 flex min-h-12 items-center justify-center gap-2 rounded border border-black/15 bg-white px-4 font-semibold"
+            href={`/api/auth/munet?next=${encodeURIComponent(redirectTo)}`}
+          >
+            <Gamepad2 size={18} />
+            使用 MuNET 登录
+          </a>
+        )}
         <p className="mt-5 text-sm text-ink/60">
           {isLogin ? "还没有账号？" : "已经有账号？"}
           <Link className="ml-1 font-medium text-mint" to={`${isLogin ? "/register" : "/login"}?next=${encodeURIComponent(redirectTo)}`}>

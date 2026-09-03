@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CheckCircle2, Gamepad2, LocateFixed, ShieldAlert } from "lucide-react";
 import { Api, type Card, type PublicMachine } from "../api";
@@ -28,10 +28,7 @@ export function MachineLoginPage() {
     });
   }, [user]);
 
-  const title = useMemo(() => {
-    if (!machine) return "ArcadeLink";
-    return `${machine.shop.name} / ${machine.name}`;
-  }, [machine]);
+  const title = machine ? `${machine.shop.name} / ${machine.name}` : "ArcadeLink";
 
   const login = async () => {
     if (!selectedCard) return;
@@ -64,9 +61,7 @@ export function MachineLoginPage() {
             <Gamepad2 size={24} />
           </span>
           <div>
-            <p className="text-sm font-medium text-mint">准备游玩</p>
-            <h1 className="mt-1 text-2xl font-semibold leading-tight">{title}</h1>
-            {machine && <p className="mt-2 text-sm text-ink/60">请在店内完成登录，提交前会确认你的位置。</p>}
+            <h1 className="text-2xl font-semibold leading-tight">{title}</h1>
           </div>
         </div>
 

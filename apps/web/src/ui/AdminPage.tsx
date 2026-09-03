@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Ban, ShieldCheck, UserCog, X } from "lucide-react";
 import { Api, type Ban as BanRecord, type User, type UserSummary } from "../api";
-import { AdminOnly } from "./AdminOnly";
+import { RequireLogin } from "./RequireLogin";
 
 const roleLabels: Record<User["role"], string> = {
   user: "玩家",
@@ -37,13 +37,10 @@ export function AdminPage() {
   }, []);
 
   return (
-    <AdminOnly>
+    <RequireLogin roles={["admin"]}>
       <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="grid content-start gap-4">
-          <div>
-            <p className="text-sm font-medium text-mint">平台管理</p>
-            <h1 className="mt-1 text-2xl font-semibold">账号权限</h1>
-          </div>
+          <h1 className="text-2xl font-semibold">账号权限</h1>
           {error && <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
           <form
             className="flex gap-2"
@@ -93,7 +90,7 @@ export function AdminPage() {
           </div>
         </div>
       </section>
-    </AdminOnly>
+    </RequireLogin>
   );
 }
 

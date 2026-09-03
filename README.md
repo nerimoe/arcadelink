@@ -26,6 +26,7 @@ Set these Worker secrets:
 - `SESSION_SECRET`
 - `URL_ENCRYPTION_KEY`
 - `TURNSTILE_SECRET_KEY`
+- `MUNET_CLIENT_SECRET`
 
 Production deploys one Worker with Workers Assets:
 

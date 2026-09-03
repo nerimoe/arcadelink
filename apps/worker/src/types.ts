@@ -1,6 +1,9 @@
 export type Env = Cloudflare.Env & {
+  APP_ORIGIN: string;
   SESSION_SECRET: string;
   URL_ENCRYPTION_KEY: string;
+  MUNET_CLIENT_ID: string;
+  MUNET_CLIENT_SECRET: string;
   TURNSTILE_SECRET_KEY?: string;
   EXTRA_ALLOWED_ORIGINS?: string;
 };

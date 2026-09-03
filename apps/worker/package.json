@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "wrangler dev --local",
     "deploy": "wrangler deploy",
-    "build": "tsc --noEmit",
+    "build": "pnpm typecheck",
+    "pretypecheck": "wrangler types",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit",
+    "lint": "pnpm typecheck",
     "test": "vitest run",
     "types:worker": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply arcadelink --local",

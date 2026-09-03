@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { CreditCard, Plus, Trash2 } from "lucide-react";
+import { CreditCard, Download, Plus, Trash2 } from "lucide-react";
 import { Api, type Card } from "../api";
 import { useAuth } from "./AuthContext";
 import { RequireLogin } from "./RequireLogin";
@@ -63,6 +63,13 @@ export function CardsPage() {
               <Plus size={18} />
               添加卡片
             </button>
+            <a
+              className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded border border-black/15 bg-white px-4 font-medium"
+              href="/api/auth/munet?next=/cards"
+            >
+              <Download size={18} />
+              从 MuNET 导入
+            </a>
           </div>
         </form>
         <div className="grid content-start gap-3">

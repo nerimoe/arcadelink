@@ -1,14 +1,17 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { HTTPException } from "hono/http-exception";
 import type { Context } from "hono";
 import { z } from "zod";
 import { attachUser, createSession, destroySession, firstUserRole, requireAdmin, requireMerchant, requireUser } from "./auth";
-import { hashPassword, verifyPassword, encryptSecret, decryptSecret } from "./crypto";
+import { hashPassword, verifyPassword, encryptSecret, decryptSecret, randomToken } from "./crypto";
 import { canAccessShop, getMachineByPublicId, listShopsForUser } from "./db";
 import { checkLocation, clampShopRadius } from "./geo";
 import { allowedOrigins, assertAllowedOrigin, clientIp, jsonError } from "./http";
 import { assertNotBanned, enforceRateLimits, loginRateLimitRules, verifyTurnstile } from "./risk";
 import { sendHinataCard } from "./hinata";
+import { finishMunetAuth, munetAuthorizeUrl } from "./munet";
 import type { AppBindings, AuthUser } from "./types";
 import {
   createCardSchema,
@@ -18,14 +21,14 @@ import {
   loginSchema,
   machineLoginSchema,
   patchMachineSchema,
-  patchShopSchema,
   setUserRoleSchema,
   shopMemberSchema,
   registerSchema,
-  updateCardSchema,
 } from "./validators";
 
 const app = new Hono<AppBindings>();
+const oauthStateCookie = "arcadelink_munet_state";
+const oauthNextCookie = "arcadelink_munet_next";
 
 app.use(
   "*",
@@ -97,6 +100,84 @@ app.post("/api/auth/logout", async (c) => {
   return c.json({ ok: true });
 });
 
+app.get("/api/auth/munet", (c) => {
+  if (!c.env.MUNET_CLIENT_ID || !c.env.MUNET_CLIENT_SECRET) jsonError(503, "MuNET 登录尚未配置");
+  const state = randomToken(24);
+  const cookieOptions = {
+    httpOnly: true,
+    secure: new URL(c.req.url).protocol === "https:",
+    sameSite: "Lax" as const,
+    path: "/",
+    maxAge: 600,
+  };
+  setCookie(c, oauthStateCookie, state, cookieOptions);
+  setCookie(c, oauthNextCookie, safePath(c.req.query("next")), cookieOptions);
+  return c.redirect(munetAuthorizeUrl(c.env.MUNET_CLIENT_ID, `${c.env.APP_ORIGIN}/callback`, state));
+});
+
+app.get("/callback", async (c) => {
+  const next = safePath(getCookie(c, oauthNextCookie));
+  const fail = (message: string) => c.redirect(`/login?error=${encodeURIComponent(message)}&next=${encodeURIComponent(next)}`);
+  const expectedState = getCookie(c, oauthStateCookie);
+  deleteCookie(c, oauthStateCookie, { path: "/" });
+  deleteCookie(c, oauthNextCookie, { path: "/" });
+  if (c.req.query("error")) return fail("MuNET 授权已取消");
+  const code = c.req.query("code");
+  if (!code || !expectedState || c.req.query("state") !== expectedState) return fail("MuNET 授权无效，请重试");
+
+  try {
+    const munet = await finishMunetAuth({
+      clientId: c.env.MUNET_CLIENT_ID,
+      clientSecret: c.env.MUNET_CLIENT_SECRET,
+      code,
+      redirectUri: `${c.env.APP_ORIGIN}/callback`,
+    });
+    const linked = await c.env.DB.prepare(
+      `SELECT users.id, users.banned_at AS bannedAt
+       FROM oauth_accounts JOIN users ON users.id = oauth_accounts.user_id
+       WHERE provider = 'munet' AND provider_user_id = ?`,
+    )
+      .bind(munet.subject)
+      .first<{ id: string; bannedAt: string | null }>();
+    const current = c.get("user");
+    if (linked?.bannedAt || current?.bannedAt) return fail("这个账号暂时无法使用");
+    if (linked && current && linked.id !== current.id) return fail("这个 MuNET 账号已绑定其他账号");
+
+    const userId = linked?.id || current?.id || crypto.randomUUID();
+    const statements: D1PreparedStatement[] = [];
+    if (!linked && !current) {
+      statements.push(
+        c.env.DB.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").bind(
+          userId,
+          `munet-${munet.subject}@oauth.invalid`,
+          await hashPassword(randomToken()),
+          await firstUserRole(c.env.DB),
+        ),
+      );
+    }
+    if (!linked) {
+      statements.push(
+        c.env.DB.prepare(
+          "INSERT INTO oauth_accounts (id, user_id, provider, provider_user_id) VALUES (?, ?, 'munet', ?)",
+        ).bind(crypto.randomUUID(), userId, munet.subject),
+      );
+    }
+    for (const card of munet.cards) {
+      statements.push(
+        c.env.DB.prepare(
+          "INSERT OR IGNORE INTO cards (id, user_id, label, card_type, access_code, source) VALUES (?, ?, ?, 'aime', ?, 'munet')",
+        ).bind(crypto.randomUUID(), userId, card.remark?.trim() || "MuNET 卡片", card.luid),
+      );
+    }
+    if (statements.length) await c.env.DB.batch(statements);
+    await createSession(c, userId);
+    return c.redirect(next);
+  } catch (error) {
+    console.error(error);
+    return fail(error instanceof Error ? error.message : "MuNET 登录失败");
+  }
+});
+
 app.post("/api/admin/users/role", async (c) => {
   requireAdmin(c);
   const body = setUserRoleSchema.parse(await c.req.json());
@@ -143,17 +224,6 @@ app.post("/api/cards", async (c) => {
     jsonError(409, "这张卡片已经添加过了");
   }
   return c.json({ card: { id, label: body.label, cardType: "aime", accessCode: body.accessCode, source: "manual" } }, 201);
-});
-
-app.patch("/api/cards/:id", async (c) => {
-  const user = requireUser(c);
-  const body = updateCardSchema.parse(await c.req.json());
-  const card = await c.env.DB.prepare("SELECT id FROM cards WHERE id = ? AND user_id = ?").bind(c.req.param("id"), user.id).first();
-  if (!card) jsonError(404, "没有找到这张卡片");
-  await c.env.DB.prepare("UPDATE cards SET label = COALESCE(?, label), disabled_at = CASE WHEN ? THEN CURRENT_TIMESTAMP WHEN ? THEN NULL ELSE disabled_at END, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-    .bind(body.label ?? null, body.disabled === true, body.disabled === false, c.req.param("id"))
-    .run();
-  return c.json({ ok: true });
 });
 
 app.delete("/api/cards/:id", async (c) => {
@@ -264,9 +334,6 @@ app.post("/api/merchant/shops", async (c) => {
   return c.json({ shop: { id: shopId, ...body, radiusMeters: clampShopRadius(body.radiusMeters) } }, 201);
 });
 
-app.patch("/api/merchant/shops", async (c) => patchShop(c));
-app.patch("/api/merchant/shops/:id", async (c) => patchShop(c, c.req.param("id")));
-
 app.get("/api/merchant/shop-members", async (c) => {
   const user = requireMerchant(c);
   const shopId = c.req.query("shopId");
@@ -346,7 +413,6 @@ app.post("/api/merchant/machines", async (c) => {
   return c.json({ machine: { id, publicId, shopId: body.shopId, name: body.name, enabled: body.enabled } }, 201);
 });
 
-app.patch("/api/merchant/machines", async (c) => patchMachine(c));
 app.patch("/api/merchant/machines/:id", async (c) => patchMachine(c, c.req.param("id")));
 
 app.delete("/api/merchant/machines/:id", async (c) => {
@@ -395,6 +461,7 @@ app.delete("/api/admin/bans/:id", async (c) => {
 });
 
 app.onError((error, c) => {
+  if (error instanceof HTTPException) return error.getResponse();
   if (error instanceof z.ZodError) {
     return c.json({ error: "请检查填写内容", issues: error.flatten() }, 400);
   }
@@ -402,25 +469,9 @@ app.onError((error, c) => {
   return c.json({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
 });
 
-async function patchShop(c: Context<AppBindings>, routeId?: string) {
-  const user = requireMerchant(c);
-  const body = patchShopSchema.parse(await c.req.json());
-  const id = routeId || body.id;
-  if (!id) jsonError(400, "请选择店铺");
-  if (!(await canAccessShop(c, user, id))) jsonError(403, "你没有这个店铺的管理权限");
-  await c.env.DB.prepare(
-    "UPDATE shops SET name = COALESCE(?, name), latitude = COALESCE(?, latitude), longitude = COALESCE(?, longitude), radius_meters = COALESCE(?, radius_meters), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-  )
-    .bind(body.name ?? null, body.latitude ?? null, body.longitude ?? null, body.radiusMeters ? clampShopRadius(body.radiusMeters) : null, id)
-    .run();
-  return c.json({ ok: true });
-}
-
-async function patchMachine(c: Context<AppBindings>, routeId?: string) {
+async function patchMachine(c: Context<AppBindings>, id: string) {
   const user = requireMerchant(c);
   const body = patchMachineSchema.parse(await c.req.json());
-  const id = routeId || body.id;
-  if (!id) jsonError(400, "请选择设备");
   const machine = await c.env.DB.prepare("SELECT id, shop_id FROM machines WHERE id = ?")
     .bind(id)
     .first<{ id: string; shop_id: string }>();
@@ -537,6 +588,10 @@ function randomPublicId(): string {
   const bytes = new Uint8Array(9);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (byte) => byte.toString(36).padStart(2, "0")).join("").slice(0, 12);
+}
+
+function safePath(value: string | undefined): string {
+  return value?.startsWith("/") && !value.startsWith("//") && value.length <= 500 ? value : "/cards";
 }
 
 export default app;

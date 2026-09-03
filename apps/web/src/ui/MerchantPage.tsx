@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Activity, Link2, Plus, Save, Store, Terminal, Trash2, Users } from "lucide-react";
 import { Api, type LoginEvent, type Machine, type Shop, type ShopMember } from "../api";
 import { useAuth } from "./AuthContext";
 import { MapPicker } from "./MapPicker";
-import { MerchantOnly } from "./MerchantOnly";
+import { RequireLogin } from "./RequireLogin";
 
 export function MerchantPage() {
   const { user } = useAuth();
@@ -45,10 +45,10 @@ export function MerchantPage() {
     loadShopDetails(selectedShopId).catch((caught) => setError(caught instanceof Error ? caught.message : "无法加载店铺信息"));
   }, [loadShopDetails, selectedShopId]);
 
-  const selectedShop = useMemo(() => shops.find((shop) => shop.id === selectedShopId), [shops, selectedShopId]);
+  const selectedShop = shops.find((shop) => shop.id === selectedShopId);
 
   return (
-    <MerchantOnly>
+    <RequireLogin roles={["merchant", "admin"]}>
       <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <div className="grid content-start gap-4">
           <ShopForm
@@ -77,19 +77,16 @@ export function MerchantPage() {
         </div>
 
         <div className="grid content-start gap-4">
-          <div>
-            <p className="text-sm font-medium text-mint">设备登录入口</p>
-            <h1 className="mt-1 text-2xl font-semibold">{selectedShop?.name || "店铺管理"}</h1>
-          </div>
+          <h1 className="text-2xl font-semibold">{selectedShop?.name || "店铺管理"}</h1>
           {machines.length === 0 ? (
-            <div className="rounded border border-dashed border-black/20 bg-white p-6 text-ink/60">选择店铺后添加设备。</div>
+            <div className="rounded border border-dashed border-black/20 bg-white p-6 text-ink/60">暂无设备</div>
           ) : (
             machines.map((machine) => <MachineCard key={machine.id} machine={machine} onChanged={() => selectedShop && loadShopDetails(selectedShop.id)} />)
           )}
           <EventsPanel events={events} />
         </div>
       </section>
-    </MerchantOnly>
+    </RequireLogin>
   );
 }
 
@@ -273,7 +270,7 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
             可使用
           </label>
         </div>
-        <input className="focus-ring mt-2 min-h-10 w-full rounded border border-black/10 bg-panel px-3 text-sm" placeholder="新的机台连接地址（不改可留空）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} />
+        <input className="focus-ring mt-2 min-h-10 w-full rounded border border-black/10 bg-panel px-3 text-sm" placeholder="连接地址（可选）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} />
         <div className="mt-4 flex min-w-0 items-center gap-2 rounded border border-black/10 bg-panel px-3 py-2">
           <Link2 size={16} className="shrink-0 text-mint" />
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm">{url}</span>

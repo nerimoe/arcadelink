@@ -29,9 +29,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Worker types
-        run: pnpm --filter @arcadelink/worker types:worker
-
       - name: Typecheck
         run: pnpm typecheck
 

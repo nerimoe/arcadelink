@@ -102,8 +102,6 @@ export const Api = {
   cards: () => api<{ cards: Card[] }>("/api/cards"),
   createCard: (label: string, accessCode: string) =>
     api<{ card: Card }>("/api/cards", { method: "POST", body: JSON.stringify({ label, accessCode }) }),
-  updateCard: (id: string, input: { label?: string; disabled?: boolean }) =>
-    api<{ ok: true }>(`/api/cards/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   deleteCard: (id: string) => api<{ ok: true }>(`/api/cards/${id}`, { method: "DELETE" }),
   publicMachine: (publicId: string) => api<{ machine: PublicMachine }>(`/api/machines/${publicId}`),
   loginMachine: (publicId: string, input: { cardId: string; lat: number; lng: number; accuracy: number }) =>

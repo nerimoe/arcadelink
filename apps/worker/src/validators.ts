@@ -17,20 +17,11 @@ export const createCardSchema = z.object({
   accessCode: accessCodeSchema,
 });
 
-export const updateCardSchema = z.object({
-  label: z.string().trim().min(1).max(40).optional(),
-  disabled: z.boolean().optional(),
-});
-
 export const createShopSchema = z.object({
   name: z.string().trim().min(1).max(80),
   latitude: z.number().gte(-90).lte(90),
   longitude: z.number().gte(-180).lte(180),
   radiusMeters: z.number().gte(30).lte(200).default(80),
-});
-
-export const patchShopSchema = createShopSchema.partial().extend({
-  id: z.string().optional(),
 });
 
 export const createMachineSchema = z.object({
@@ -40,9 +31,7 @@ export const createMachineSchema = z.object({
   enabled: z.boolean().default(true),
 });
 
-export const patchMachineSchema = createMachineSchema.partial().extend({
-  id: z.string().optional(),
-});
+export const patchMachineSchema = createMachineSchema.partial();
 
 export const machineLoginSchema = z.object({
   cardId: z.string().min(1),

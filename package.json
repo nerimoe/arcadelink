@@ -10,8 +10,6 @@
     "lint": "pnpm --recursive lint"
   },
   "devDependencies": {
-    "node-addon-api": "^8.3.1",
-    "node-gyp": "^11.2.0",
     "typescript": "^5.8.3"
   }
 }

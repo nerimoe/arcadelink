@@ -5,3 +5,4 @@ dist
 .DS_Store
 coverage
 *.local
+apps/worker/worker-configuration.d.ts

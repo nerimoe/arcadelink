@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { Link, NavLink, Route, Routes } from "react-router-dom";
-import { Gamepad2, IdCard, LogOut, MapPin, Shield, Store } from "lucide-react";
+import { Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { Gamepad2, IdCard, LogOut, Shield, Store } from "lucide-react";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { AuthPage } from "./AuthPage";
 
@@ -48,12 +48,11 @@ function Shell() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Suspense fallback={<div className="rounded border border-black/10 bg-panel p-6">加载中...</div>}>
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Navigate to="/cards" replace />} />
             <Route path="/login" element={<AuthPage mode="login" />} />
             <Route path="/register" element={<AuthPage mode="register" />} />
             <Route path="/cards" element={<CardsPage />} />
             <Route path="/merchant" element={<MerchantPage />} />
-            <Route path="/merchant/shops/:id" element={<MerchantPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/m/:publicId" element={<MachineLoginPage />} />
           </Routes>
@@ -74,38 +73,5 @@ function NavItem({ to, icon, label }: { to: string; icon: ReactNode; label: stri
       {icon}
       <span className="hidden sm:inline">{label}</span>
     </NavLink>
-  );
-}
-
-function Home() {
-  return (
-    <section className="grid gap-6 py-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
-      <div>
-        <p className="mb-3 flex items-center gap-2 text-sm font-medium text-mint">
-          <MapPin size={16} />
-          扫一扫，快速登录机台
-        </p>
-        <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-normal text-ink md:text-5xl">
-          ArcadeLink
-        </h1>
-        <p className="mt-4 max-w-xl text-base leading-7 text-ink/70">
-          为游戏厅和音游窝准备的到店登录工具。玩家扫码后选择自己的卡片，确认在店内后即可开始游玩。
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link className="focus-ring rounded bg-ink px-5 py-3 font-medium text-white" to="/cards">
-            管理卡片
-          </Link>
-        </div>
-      </div>
-      <div className="rounded border border-black/10 bg-panel p-5 shadow-soft">
-        <div className="grid gap-3">
-          {["每台机都有专属入口", "下次到店不用重复登录", "到店后才能使用", "卡片安全发送到机台"].map((item) => (
-            <div key={item} className="rounded border border-black/10 bg-white p-4 font-medium">
-              {item}
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
