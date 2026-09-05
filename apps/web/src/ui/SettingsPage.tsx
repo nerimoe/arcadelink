@@ -69,19 +69,19 @@ export function SettingsPage() {
         </section>
 
         <section className="rounded border border-black/10 bg-panel p-5">
-          <h2 className="flex items-center gap-2 font-semibold"><Fingerprint size={18} />Passkey</h2>
-          {browserSupportsWebAuthn() && (
-            <div className="mt-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 font-semibold"><Fingerprint size={18} />Passkey</h2>
+            {browserSupportsWebAuthn() && (
               <button
-                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded bg-ink px-4 text-sm font-medium text-white disabled:opacity-60"
+                className="focus-ring flex min-h-9 items-center justify-center gap-1.5 rounded bg-ink px-3 text-sm font-medium text-white disabled:opacity-60"
                 disabled={busy}
                 onClick={addPasskey}
               >
                 <Plus size={16} />
                 添加 Passkey
               </button>
-            </div>
-          )}
+            )}
+          </div>
           <div className="mt-4 grid gap-2">
             {passkeys.map((passkey) => (
               <div key={passkey.id} className="flex items-center justify-between gap-3 rounded border border-black/10 bg-white p-3">
