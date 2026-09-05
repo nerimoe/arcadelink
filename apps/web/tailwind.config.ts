@@ -5,13 +5,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#17201f",
-        panel: "#f7f6f2",
-        mint: "#107c72",
-        coral: "#d94f45",
+        canvas: "var(--color-canvas)",
+        panel: "var(--color-panel)",
+        surface: "var(--color-surface)",
+        ink: "rgb(var(--color-ink) / <alpha-value>)",
+        mint: "var(--color-mint)",
+        coral: "var(--color-coral)",
       },
       boxShadow: {
-        soft: "0 18px 60px rgba(23, 32, 31, 0.12)",
+        soft: "var(--shadow-soft)",
       },
     },
   },

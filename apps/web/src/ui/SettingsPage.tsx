@@ -56,11 +56,11 @@ export function SettingsPage() {
           {error && <p className="mt-4 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
         </div>
 
-        <section className="rounded border border-black/10 bg-panel p-5">
+        <section className="rounded border border-ink/10 bg-panel p-5">
           <h2 className="flex items-center gap-2 font-semibold"><KeyRound size={18} />登录身份</h2>
           <div className="mt-4 grid gap-2">
             {identities.map((identity) => (
-              <div key={identity.id} className="rounded border border-black/10 bg-white p-3">
+              <div key={identity.id} className="rounded border border-ink/10 bg-surface p-3">
                 <p className="font-medium">{identity.provider === "munet" ? "MuNET" : identity.provider}</p>
                 <p className="mt-1 text-sm text-ink/60">{identity.displayName || identity.username || "已连接"}</p>
               </div>
@@ -68,12 +68,12 @@ export function SettingsPage() {
           </div>
         </section>
 
-        <section className="rounded border border-black/10 bg-panel p-5">
+        <section className="rounded border border-ink/10 bg-panel p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 font-semibold"><Fingerprint size={18} />Passkey</h2>
             {browserSupportsWebAuthn() && (
               <button
-                className="focus-ring flex min-h-9 items-center justify-center gap-1.5 rounded bg-ink px-3 text-sm font-medium text-white disabled:opacity-60"
+                className="focus-ring flex min-h-9 items-center justify-center gap-1.5 rounded bg-ink px-3 text-sm font-medium text-canvas disabled:opacity-60"
                 disabled={busy}
                 onClick={addPasskey}
               >
@@ -84,7 +84,7 @@ export function SettingsPage() {
           </div>
           <div className="mt-4 grid gap-2">
             {passkeys.map((passkey) => (
-              <div key={passkey.id} className="flex items-center justify-between gap-3 rounded border border-black/10 bg-white p-3">
+              <div key={passkey.id} className="flex items-center justify-between gap-3 rounded border border-ink/10 bg-surface p-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{passkey.name}</p>
                   <p className="mt-1 text-sm text-ink/60">
@@ -109,13 +109,13 @@ export function SettingsPage() {
           {setup && <Link className="mt-4 inline-flex text-sm font-medium text-mint" to={next} replace>稍后设置</Link>}
         </section>
 
-        <section className="rounded border border-black/10 bg-panel p-5">
+        <section className="rounded border border-ink/10 bg-panel p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="flex items-center gap-2 font-semibold"><Store size={18} />店家管理</h2>
               <p className="mt-1 text-sm text-ink/60">管理或创建你的街机店铺与机台登录入口</p>
             </div>
-            <Link to="/merchant" className="focus-ring inline-flex min-h-9 items-center justify-center rounded bg-ink px-4 text-sm font-medium text-white">
+            <Link to="/merchant" className="focus-ring inline-flex min-h-9 items-center justify-center rounded bg-ink px-4 text-sm font-medium text-canvas">
               前往管理
             </Link>
           </div>

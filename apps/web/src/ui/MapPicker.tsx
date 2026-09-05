@@ -16,7 +16,7 @@ export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
   }, [latitude, longitude]);
 
   return (
-    <div className="shop-map overflow-hidden rounded border border-black/10">
+    <div className="shop-map overflow-hidden rounded border border-ink/10">
       <MapContainer center={center} zoom={15} scrollWheelZoom={true} className="h-64 w-full">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

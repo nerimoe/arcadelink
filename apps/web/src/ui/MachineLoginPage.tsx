@@ -107,9 +107,9 @@ export function MachineLoginPage() {
 
   return (
     <section className="mx-auto max-w-lg py-3">
-      <div className="rounded border border-black/10 bg-panel p-5 shadow-soft">
+      <div className="rounded border border-ink/10 bg-panel p-5 shadow-soft">
         <div className="flex items-start gap-3">
-          <span className="grid size-12 shrink-0 place-items-center rounded bg-ink text-white">
+          <span className="grid size-12 shrink-0 place-items-center rounded bg-ink text-canvas">
             <Gamepad2 size={24} />
           </span>
           <div>
@@ -126,7 +126,7 @@ export function MachineLoginPage() {
               </p>
             )}
             <a
-              className="focus-ring flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-white"
+              className="focus-ring flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-canvas"
               href={`/api/auth/munet?next=${encodeURIComponent(munetNext)}`}
             >
               <Gamepad2 size={18} />
@@ -134,7 +134,7 @@ export function MachineLoginPage() {
             </a>
             {browserSupportsWebAuthn() && (
               <button
-                className="focus-ring flex min-h-12 w-full items-center justify-center gap-2 rounded border border-black/15 bg-white px-4 font-semibold disabled:opacity-60"
+                className="focus-ring flex min-h-12 w-full items-center justify-center gap-2 rounded border border-ink/15 bg-surface px-4 font-semibold text-ink disabled:opacity-60"
                 disabled={passkeyBusy}
                 onClick={loginWithPasskey}
               >
@@ -160,10 +160,10 @@ export function MachineLoginPage() {
             )}
 
             {cards.length === 0 ? (
-              <div className="rounded border border-dashed border-black/20 bg-white p-6 text-center">
+              <div className="rounded border border-dashed border-ink/20 bg-surface p-6 text-center">
                 <p className="text-sm text-ink/60">还没有添加卡片</p>
                 <Link
-                  className="focus-ring mt-3 inline-flex items-center gap-1 rounded bg-ink px-4 py-2 text-sm font-medium text-white"
+                  className="focus-ring mt-3 inline-flex items-center gap-1 rounded bg-ink px-4 py-2 text-sm font-medium text-canvas"
                   to="/cards"
                 >
                   先添加一张卡片
@@ -187,8 +187,8 @@ export function MachineLoginPage() {
                         isSuccess
                           ? "border-mint bg-mint/10 text-mint"
                           : isThisCard
-                          ? "border-ink bg-white shadow-soft"
-                          : "border-black/10 bg-white hover:border-black/25 hover:shadow-soft"
+                          ? "border-ink bg-surface shadow-soft"
+                          : "border-ink/10 bg-surface hover:border-ink/25 hover:shadow-soft"
                       } disabled:cursor-not-allowed ${isDisabled ? "opacity-40" : ""}`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -222,7 +222,7 @@ export function MachineLoginPage() {
                         ) : isThisCard && status === "sending" ? (
                           <span className="text-xs font-medium text-ink/70">正在登录...</span>
                         ) : (
-                          <span className="focus-ring inline-flex items-center gap-1 rounded bg-ink px-3 py-1.5 text-xs font-semibold text-white">
+                          <span className="focus-ring inline-flex items-center gap-1 rounded bg-ink px-3 py-1.5 text-xs font-semibold text-canvas">
                             <LocateFixed size={14} />
                             点击登录
                           </span>
@@ -241,7 +241,7 @@ export function MachineLoginPage() {
 }
 
 function Panel({ children }: { children: ReactNode }) {
-  return <div className="mx-auto max-w-lg rounded border border-black/10 bg-panel p-6 shadow-soft">{children}</div>;
+  return <div className="mx-auto max-w-lg rounded border border-ink/10 bg-panel p-6 shadow-soft">{children}</div>;
 }
 
 function getPosition(): Promise<GeolocationPosition> {

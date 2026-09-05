@@ -48,8 +48,8 @@ export function AdminPage() {
               void loadUsers();
             }}
           >
-            <input className="focus-ring min-h-11 flex-1 rounded border border-black/10 bg-white px-3" placeholder="搜索 MuNET 用户" value={query} onChange={(event) => setQuery(event.target.value)} />
-            <button className="focus-ring rounded bg-ink px-4 font-medium text-white">搜索</button>
+            <input className="focus-ring min-h-11 flex-1 rounded border border-ink/10 bg-surface px-3" placeholder="搜索 MuNET 用户" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <button className="focus-ring rounded bg-ink px-4 font-medium text-canvas">搜索</button>
           </form>
           <div className="grid gap-3">
             {users.map((user) => (
@@ -59,17 +59,17 @@ export function AdminPage() {
         </div>
         <div className="grid content-start gap-4">
           <BanForm onCreated={loadBans} />
-          <div className="rounded border border-black/10 bg-panel p-4">
+          <div className="rounded border border-ink/10 bg-panel p-4">
             <h2 className="flex items-center gap-2 font-semibold">
               <Ban size={18} />
               暂停名单
             </h2>
             <div className="mt-3 grid gap-2">
               {bans.length === 0 ? (
-                <p className="rounded border border-dashed border-black/20 bg-white p-4 text-sm text-ink/60">暂无记录。</p>
+                <p className="rounded border border-dashed border-ink/20 bg-surface p-4 text-sm text-ink/60">暂无记录。</p>
               ) : (
                 bans.map((ban) => (
-                  <div key={ban.id} className="rounded border border-black/10 bg-white p-3">
+                  <div key={ban.id} className="rounded border border-ink/10 bg-surface p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-medium">{banLabels[ban.subjectType]} · {ban.subjectValue}</p>
@@ -98,13 +98,13 @@ function UserRow({ user, onChanged }: { user: UserSummary; onChanged: () => void
   const [busy, setBusy] = useState(false);
 
   return (
-    <article className="flex flex-wrap items-center justify-between gap-3 rounded border border-black/10 bg-white p-4">
+    <article className="flex flex-wrap items-center justify-between gap-3 rounded border border-ink/10 bg-surface p-4">
       <div className="min-w-0">
         <p className="font-semibold">{user.displayName}</p>
         <p className="mt-1 text-sm text-ink/60">@{user.username} · 当前身份：{roleLabels[user.role]}</p>
       </div>
       <div className="flex items-center gap-2">
-        <select className="focus-ring min-h-10 rounded border border-black/10 bg-panel px-3" value={role} onChange={(event) => setRole(event.target.value as User["role"])}>
+        <select className="focus-ring min-h-10 rounded border border-ink/10 bg-panel px-3" value={role} onChange={(event) => setRole(event.target.value as User["role"])}>
           {Object.entries(roleLabels).map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
@@ -150,20 +150,20 @@ function BanForm({ onCreated }: { onCreated: () => void | Promise<void> }) {
   };
 
   return (
-    <form onSubmit={submit} className="rounded border border-black/10 bg-panel p-4 shadow-soft">
+    <form onSubmit={submit} className="rounded border border-ink/10 bg-panel p-4 shadow-soft">
       <h2 className="flex items-center gap-2 font-semibold">
         <ShieldCheck size={18} />
         暂停使用
       </h2>
       <div className="mt-3 grid gap-3">
-        <select className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" value={subjectType} onChange={(event) => setSubjectType(event.target.value as BanRecord["subjectType"])}>
+        <select className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" value={subjectType} onChange={(event) => setSubjectType(event.target.value as BanRecord["subjectType"])}>
           {Object.entries(banLabels).map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
-        <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="对象标识" value={subjectValue} onChange={(event) => setSubjectValue(event.target.value)} required />
-        <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="原因" value={reason} onChange={(event) => setReason(event.target.value)} required />
-        <button className="focus-ring min-h-11 rounded bg-ink px-4 font-medium text-white disabled:opacity-60" disabled={busy}>
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="对象标识" value={subjectValue} onChange={(event) => setSubjectValue(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="原因" value={reason} onChange={(event) => setReason(event.target.value)} required />
+        <button className="focus-ring min-h-11 rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy}>
           添加
         </button>
       </div>

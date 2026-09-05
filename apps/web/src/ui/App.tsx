@@ -21,11 +21,11 @@ export function App() {
 function Shell() {
   const { user, logout } = useAuth();
   return (
-    <div className="min-h-screen bg-[#efede7]">
-      <header className="sticky top-0 z-20 border-b border-black/10 bg-panel/90 backdrop-blur">
+    <div className="min-h-screen bg-canvas text-ink">
+      <header className="sticky top-0 z-20 border-b border-ink/10 bg-panel/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2 text-lg font-semibold tracking-normal">
-            <span className="grid size-9 place-items-center rounded bg-ink text-white">
+            <span className="grid size-9 place-items-center rounded bg-ink text-canvas">
               <Gamepad2 size={20} />
             </span>
             ArcadeLink
@@ -36,11 +36,11 @@ function Shell() {
             {user?.role === "admin" && <NavItem to="/admin" icon={<Shield size={16} />} label="管理" />}
             {user && <NavItem to="/settings" icon={<UserRound size={16} />} label="账号" />}
             {user ? (
-              <button onClick={logout} className="focus-ring grid size-10 place-items-center rounded text-ink hover:bg-black/5" title="退出登录">
+              <button onClick={logout} className="focus-ring grid size-10 place-items-center rounded text-ink hover:bg-ink/5" title="退出登录">
                 <LogOut size={18} />
               </button>
             ) : (
-              <NavLink className="focus-ring rounded px-3 py-2 hover:bg-black/5" to="/login">
+              <NavLink className="focus-ring rounded px-3 py-2 hover:bg-ink/5" to="/login">
                 登录
               </NavLink>
             )}
@@ -48,7 +48,7 @@ function Shell() {
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
-        <Suspense fallback={<div className="rounded border border-black/10 bg-panel p-6">加载中...</div>}>
+        <Suspense fallback={<div className="rounded border border-ink/10 bg-panel p-6">加载中...</div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/cards" replace />} />
             <Route path="/login" element={<AuthPage />} />
@@ -70,7 +70,7 @@ function NavItem({ to, icon, label }: { to: string; icon: ReactNode; label: stri
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `focus-ring flex items-center gap-2 rounded px-3 py-2 hover:bg-black/5 ${isActive ? "bg-white shadow-sm" : ""}`
+        `focus-ring flex items-center gap-2 rounded px-3 py-2 hover:bg-ink/5 ${isActive ? "bg-surface shadow-sm" : ""}`
       }
     >
       {icon}

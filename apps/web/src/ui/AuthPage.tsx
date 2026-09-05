@@ -32,11 +32,11 @@ export function AuthPage() {
 
   return (
     <section className="mx-auto max-w-md py-8">
-      <div className="rounded border border-black/10 bg-panel p-6 shadow-soft">
+      <div className="rounded border border-ink/10 bg-panel p-6 shadow-soft">
         <h1 className="text-2xl font-semibold">登录 ArcadeLink</h1>
         {error && <p className="mt-5 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
         <a
-          className="focus-ring mt-6 flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-white"
+          className="focus-ring mt-6 flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-canvas"
           href={`/api/auth/munet?next=${encodeURIComponent(redirectTo)}`}
         >
           <Gamepad2 size={18} />
@@ -44,7 +44,7 @@ export function AuthPage() {
         </a>
         {browserSupportsWebAuthn() && (
           <button
-            className="focus-ring mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded border border-black/15 bg-white px-4 font-semibold disabled:opacity-60"
+            className="focus-ring mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded border border-ink/15 bg-surface px-4 font-semibold text-ink disabled:opacity-60"
             disabled={busy}
             onClick={loginWithPasskey}
           >

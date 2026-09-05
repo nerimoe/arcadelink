@@ -75,7 +75,7 @@ export function MerchantPage() {
       <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <div className="grid content-start gap-4">
           {shops.length > 0 && (
-            <div className="rounded border border-black/10 bg-panel p-4 shadow-soft">
+            <div className="rounded border border-ink/10 bg-panel p-4 shadow-soft">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 font-semibold">
                   <Store size={18} />
@@ -83,14 +83,14 @@ export function MerchantPage() {
                 </h2>
                 <button
                   type="button"
-                  className="focus-ring flex items-center gap-1 rounded border border-black/15 bg-white px-2.5 py-1 text-xs font-medium hover:bg-black/5"
+                  className="focus-ring flex items-center gap-1 rounded border border-ink/15 bg-surface px-2.5 py-1 text-xs font-medium hover:bg-ink/5"
                   onClick={() => setShowShopForm((prev) => !prev)}
                 >
                   {showShopForm ? <X size={14} /> : <Plus size={14} />}
                   {showShopForm ? "收起开店" : "新建店铺"}
                 </button>
               </div>
-              <select className="focus-ring min-h-11 w-full rounded border border-black/10 bg-white px-3" value={selectedShopId} onChange={(event) => setSelectedShopId(event.target.value)}>
+              <select className="focus-ring min-h-11 w-full rounded border border-ink/10 bg-surface px-3" value={selectedShopId} onChange={(event) => setSelectedShopId(event.target.value)}>
                 {shops.map((shop) => (
                   <option key={shop.id} value={shop.id}>
                     {shop.name}
@@ -140,7 +140,7 @@ export function MerchantPage() {
             )}
           </div>
           {!selectedShop ? (
-            <div className="rounded border border-dashed border-black/20 bg-white p-8 text-center text-ink/60">
+            <div className="rounded border border-dashed border-ink/20 bg-surface p-8 text-center text-ink/60">
               <Store size={32} className="mx-auto mb-2 text-ink/40" />
               <p className="font-medium text-ink">还没有店铺</p>
               <p className="mt-1 text-sm">
@@ -150,7 +150,7 @@ export function MerchantPage() {
           ) : (
             <>
               {machines.length === 0 ? (
-                <div className="rounded border border-dashed border-black/20 bg-white p-6 text-ink/60">暂无设备</div>
+                <div className="rounded border border-dashed border-ink/20 bg-surface p-6 text-ink/60">暂无设备</div>
               ) : (
                 machines.map((machine) => <MachineCard key={machine.id} machine={machine} onChanged={() => selectedShop && loadShopDetails(selectedShop.id)} />)
               )}
@@ -199,7 +199,7 @@ function ShopForm({
   };
 
   return (
-    <form onSubmit={submit} className="rounded border border-black/10 bg-panel p-5 shadow-soft">
+    <form onSubmit={submit} className="rounded border border-ink/10 bg-panel p-5 shadow-soft">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-semibold">
           <Store size={21} />
@@ -208,7 +208,7 @@ function ShopForm({
         {isCollapsible && onCancel && (
           <button
             type="button"
-            className="focus-ring rounded p-1 text-ink/60 hover:bg-black/5"
+            className="focus-ring rounded p-1 text-ink/60 hover:bg-ink/5"
             onClick={onCancel}
             title="收起"
           >
@@ -217,25 +217,25 @@ function ShopForm({
         )}
       </div>
       <div className="mt-4 grid gap-3">
-        <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="店铺名称" value={name} onChange={(event) => setName(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="店铺名称" value={name} onChange={(event) => setName(event.target.value)} required />
         <MapPicker latitude={latitude} longitude={longitude} onChange={(lat, lng) => {
           setLatitude(lat);
           setLongitude(lng);
         }} />
         <div className="grid grid-cols-2 gap-3">
-          <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="地图位置" value={latitude ?? ""} onChange={(event) => setLatitude(parseCoordinate(event.target.value))} required />
-          <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="地图位置" value={longitude ?? ""} onChange={(event) => setLongitude(parseCoordinate(event.target.value))} required />
+          <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="地图位置" value={latitude ?? ""} onChange={(event) => setLatitude(parseCoordinate(event.target.value))} required />
+          <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="地图位置" value={longitude ?? ""} onChange={(event) => setLongitude(parseCoordinate(event.target.value))} required />
         </div>
-        <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="允许距离，例如 80" value={radiusMeters} onChange={(event) => setRadiusMeters(event.target.value)} inputMode="numeric" />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="允许距离，例如 80" value={radiusMeters} onChange={(event) => setRadiusMeters(event.target.value)} inputMode="numeric" />
         <div className="flex gap-2">
-          <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-white disabled:opacity-60" disabled={busy}>
+          <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy}>
             <Plus size={18} />
             保存店铺
           </button>
           {isCollapsible && onCancel && (
             <button
               type="button"
-              className="focus-ring rounded border border-black/15 bg-white px-4 font-medium hover:bg-black/5"
+              className="focus-ring rounded border border-ink/15 bg-surface px-4 font-medium text-ink hover:bg-ink/5"
               onClick={onCancel}
             >
               取消
@@ -272,14 +272,14 @@ function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => v
   };
 
   return (
-    <form onSubmit={submit} className="rounded border border-black/10 bg-panel p-5">
+    <form onSubmit={submit} className="rounded border border-ink/10 bg-panel p-5">
       <h2 className="flex items-center gap-2 font-semibold">
         <Terminal size={18} />
         添加设备
       </h2>
       <div className="mt-4 grid gap-3">
-        <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="设备名称" value={name} onChange={(event) => setName(event.target.value)} required />
-        <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="机台连接地址" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="设备名称" value={name} onChange={(event) => setName(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="机台连接地址" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} required />
         <button className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded bg-mint px-4 font-medium text-white disabled:opacity-60" disabled={busy}>
           <Plus size={18} />
           生成登录入口
@@ -308,24 +308,24 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
   };
 
   return (
-    <section className="rounded border border-black/10 bg-panel p-5">
+    <section className="rounded border border-ink/10 bg-panel p-5">
       <h2 className="flex items-center gap-2 font-semibold">
         <Users size={18} />
         店铺成员
       </h2>
       <form className="mt-4 grid gap-3" onSubmit={submit}>
-        <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="MuNET 用户名或 ID" value={memberUser} onChange={(event) => setMemberUser(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="MuNET 用户名或 ID" value={memberUser} onChange={(event) => setMemberUser(event.target.value)} required />
         <div className="grid grid-cols-[1fr_auto] gap-2">
-          <select className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" value={role} onChange={(event) => setRole(event.target.value as ShopMember["role"])}>
+          <select className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" value={role} onChange={(event) => setRole(event.target.value as ShopMember["role"])}>
             <option value="staff">店员</option>
             <option value="owner">负责人</option>
           </select>
-          <button className="focus-ring rounded bg-ink px-4 font-medium text-white disabled:opacity-60" disabled={busy}>添加</button>
+          <button className="focus-ring rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy}>添加</button>
         </div>
       </form>
       <div className="mt-4 grid gap-2">
         {members.map((member) => (
-          <div key={member.id} className="flex items-center justify-between gap-3 rounded border border-black/10 bg-white p-3">
+          <div key={member.id} className="flex items-center justify-between gap-3 rounded border border-ink/10 bg-surface p-3">
             <div className="min-w-0">
               <p className="truncate font-medium">{member.displayName}</p>
               <p className="text-sm text-ink/60">@{member.username} · {member.role === "owner" ? "负责人" : "店员"}</p>
@@ -362,20 +362,20 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
   }, [machine]);
 
   return (
-    <article className="grid gap-4 rounded border border-black/10 bg-white p-4 sm:grid-cols-[160px_1fr]">
-      <div className="grid place-items-center rounded border border-black/10 bg-panel p-3">
+    <article className="grid gap-4 rounded border border-ink/10 bg-surface p-4 sm:grid-cols-[160px_1fr]">
+      <div className="grid place-items-center rounded border border-ink/10 bg-white p-3">
         <QRCodeSVG value={url} size={132} />
       </div>
       <div className="min-w-0">
         <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-          <input className="focus-ring min-h-10 rounded border border-black/10 bg-panel px-3 font-semibold" value={name} onChange={(event) => setName(event.target.value)} />
-          <label className="flex items-center gap-2 rounded border border-black/10 bg-panel px-3 text-sm font-medium">
+          <input className="focus-ring min-h-10 rounded border border-ink/10 bg-panel px-3 font-semibold" value={name} onChange={(event) => setName(event.target.value)} />
+          <label className="flex items-center gap-2 rounded border border-ink/10 bg-panel px-3 text-sm font-medium">
             <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
             可使用
           </label>
         </div>
-        <input className="focus-ring mt-2 min-h-10 w-full rounded border border-black/10 bg-panel px-3 text-sm" placeholder="连接地址（可选）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} />
-        <div className="mt-4 flex min-w-0 items-center gap-2 rounded border border-black/10 bg-panel px-3 py-2">
+        <input className="focus-ring mt-2 min-h-10 w-full rounded border border-ink/10 bg-panel px-3 text-sm" placeholder="连接地址（可选）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} />
+        <div className="mt-4 flex min-w-0 items-center gap-2 rounded border border-ink/10 bg-panel px-3 py-2">
           <Link2 size={16} className="shrink-0 text-mint" />
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm">{url}</span>
         </div>
@@ -418,17 +418,17 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
 
 function EventsPanel({ events }: { events: LoginEvent[] }) {
   return (
-    <section className="rounded border border-black/10 bg-panel p-5">
+    <section className="rounded border border-ink/10 bg-panel p-5">
       <h2 className="flex items-center gap-2 font-semibold">
         <Activity size={18} />
         最近登录记录
       </h2>
       <div className="mt-4 grid gap-2">
         {events.length === 0 ? (
-          <p className="rounded border border-dashed border-black/20 bg-white p-4 text-sm text-ink/60">暂无记录。</p>
+          <p className="rounded border border-dashed border-ink/20 bg-surface p-4 text-sm text-ink/60">暂无记录。</p>
         ) : (
           events.map((event) => (
-            <article key={event.id} className="rounded border border-black/10 bg-white p-3">
+            <article key={event.id} className="rounded border border-ink/10 bg-surface p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">{event.machineName || "设备"} · {event.result === "sent" ? "成功" : event.result === "blocked" ? "已拦截" : "失败"}</p>
                 <time className="text-xs text-ink/50">{new Date(event.createdAt).toLocaleString()}</time>
