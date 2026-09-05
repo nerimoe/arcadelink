@@ -51,7 +51,8 @@ export async function finishMunetAuth(input: {
     headers: { authorization: `Bearer ${accessToken}` },
   });
   if (!profileResponse.ok) throw new Error("无法读取 MuNET 账号");
-  const profile = profileSchema.parse(await profileResponse.json());
+  const profileJson = await profileResponse.json();
+  const profile = profileSchema.parse(profileJson);
 
   const statuses: string[] = [];
   for (const origin of cardApis) {
@@ -65,7 +66,11 @@ export async function finishMunetAuth(input: {
       statuses.push(`${origin}:network_error`);
     }
   }
-  console.error("MuNET card API failed", { statuses, token: tokenMetadata(accessToken) });
+  console.error("MuNET card API failed", {
+    statuses,
+    profile: objectMetadata(profileJson),
+    token: tokenMetadata(accessToken),
+  });
   throw new Error("无法读取 MuNET 卡片");
 }
 
@@ -73,8 +78,15 @@ function tokenMetadata(token: string): unknown {
   try {
     const encoded = token.split(".")[1]!.replaceAll("-", "+").replaceAll("_", "/");
     const payload = JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")));
-    return { aud: payload.aud, scope: payload.scope };
+    return objectMetadata(payload);
   } catch {
     return "opaque";
   }
+}
+
+function objectMetadata(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return typeof value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, Array.isArray(item) ? `array(${item.length})` : typeof item]),
+  );
 }
