@@ -348,7 +348,7 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
 }
 
 function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () => void | Promise<void> }) {
-  const url = `${window.location.origin}/m/${machine.publicId}`;
+  const url = `${window.location.origin}/t/${machine.publicId}`;
   const [name, setName] = useState(machine.name);
   const [hinataUrl, setHinataUrl] = useState("");
   const [enabled, setEnabled] = useState(Number(machine.enabled) === 1 || machine.enabled === true);

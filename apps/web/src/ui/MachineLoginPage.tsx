@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { CheckCircle2, CreditCard, Fingerprint, Gamepad2, Loader2, LocateFixed, ShieldAlert } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
 import { Api, type Card, type PublicMachine } from "../api";
@@ -8,6 +8,9 @@ import { useAuth } from "./AuthContext";
 
 export function MachineLoginPage() {
   const { publicId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const ticket = searchParams.get("ticket") || "";
+  const queryError = searchParams.get("error");
   const { user, loading, refresh } = useAuth();
   const [machine, setMachine] = useState<PublicMachine | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
@@ -18,10 +21,18 @@ export function MachineLoginPage() {
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   useEffect(() => {
-    Api.publicMachine(publicId)
+    if (queryError) {
+      setError(queryError);
+      return;
+    }
+    if (!ticket) {
+      setError("本次会话已失效，请重新扫描机台二维码或触碰 NFC 标签");
+      return;
+    }
+    Api.publicMachine(publicId, ticket)
       .then((result) => setMachine(result.machine))
       .catch((caught) => setError(caught instanceof Error ? caught.message : "没有找到这台机台"));
-  }, [publicId]);
+  }, [publicId, ticket, queryError]);
 
   useEffect(() => {
     if (!user) return;
@@ -49,6 +60,10 @@ export function MachineLoginPage() {
 
   const loginWithCard = async (cardId: string) => {
     if (status !== "idle") return;
+    if (!ticket) {
+      setError("本次会话已失效，请重新扫描机台二维码或触碰 NFC 标签");
+      return;
+    }
     setError(null);
     setActiveCardId(cardId);
     setStatus("locating");
@@ -60,7 +75,9 @@ export function MachineLoginPage() {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
         accuracy: position.coords.accuracy,
+        ticket,
       });
+      window.history.replaceState(null, "", `/m/${publicId}?expired=1`);
       setStatus("sent");
     } catch (caught) {
       setStatus("idle");
@@ -70,7 +87,23 @@ export function MachineLoginPage() {
   };
 
   if (loading) return <Panel>加载中...</Panel>;
-  if (error && !machine) return <Panel>{error}</Panel>;
+  if (error && !machine) {
+    return (
+      <Panel>
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded bg-coral/10 text-coral">
+            <ShieldAlert size={20} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-ink">无法进入机台会话</h2>
+            <p className="mt-1 text-sm text-ink/70">{error}</p>
+          </div>
+        </div>
+      </Panel>
+    );
+  }
+
+  const munetNext = `/m/${publicId}${ticket ? `?ticket=${encodeURIComponent(ticket)}` : ""}`;
 
   return (
     <section className="mx-auto max-w-lg py-3">
@@ -94,7 +127,7 @@ export function MachineLoginPage() {
             )}
             <a
               className="focus-ring flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-white"
-              href={`/api/auth/munet?next=${encodeURIComponent(`/m/${publicId}`)}`}
+              href={`/api/auth/munet?next=${encodeURIComponent(munetNext)}`}
             >
               <Gamepad2 size={18} />
               使用 MuNET 继续

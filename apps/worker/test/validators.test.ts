@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessCodeSchema, setUserRoleSchema } from "../src/validators";
+import { accessCodeSchema, machineLoginSchema, setUserRoleSchema } from "../src/validators";
 
 describe("accessCodeSchema", () => {
   it("accepts valid 20-digit access codes not starting with 3", () => {
@@ -27,6 +27,30 @@ describe("setUserRoleSchema", () => {
 
   it("rejects merchant role", () => {
     expect(() => setUserRoleSchema.parse({ userId: "u3", role: "merchant" })).toThrow();
+  });
+});
+
+describe("machineLoginSchema", () => {
+  it("accepts valid machine login payload with ticket", () => {
+    const payload = {
+      cardId: "card_123",
+      lat: 35.6895,
+      lng: 139.6917,
+      accuracy: 15,
+      ticket: "ticket_token_abc",
+    };
+    expect(machineLoginSchema.parse(payload)).toMatchObject(payload);
+  });
+
+  it("rejects machine login payload without ticket", () => {
+    expect(() =>
+      machineLoginSchema.parse({
+        cardId: "card_123",
+        lat: 35.6895,
+        lng: 139.6917,
+        accuracy: 15,
+      })
+    ).toThrow("缺少会话凭证");
   });
 });
 

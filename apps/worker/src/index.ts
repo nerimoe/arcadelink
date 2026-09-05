@@ -309,8 +309,24 @@ app.delete("/api/cards/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+app.get("/t/:publicId", async (c) => {
+  const publicId = c.req.param("publicId");
+  const machine = await getMachineByPublicId(c.env.DB, publicId);
+  if (!machine || machine.enabled !== 1) {
+    return c.redirect(`/m/${encodeURIComponent(publicId)}?error=${encodeURIComponent("没有找到这台机台")}`, 302);
+  }
+  const ticket = randomToken(24);
+  await c.env.RATE_LIMIT.put(`ticket:${publicId}:${ticket}`, "1", { expirationTtl: 300 });
+  return c.redirect(`/m/${encodeURIComponent(publicId)}?ticket=${encodeURIComponent(ticket)}`, 302);
+});
+
 app.get("/api/machines/:publicId", async (c) => {
-  const machine = await getMachineByPublicId(c.env.DB, c.req.param("publicId"));
+  const publicId = c.req.param("publicId");
+  const ticket = c.req.query("ticket");
+  if (!ticket || !(await c.env.RATE_LIMIT.get(`ticket:${publicId}:${ticket}`))) {
+    jsonError(403, "本次会话已失效，请重新扫描机台二维码或触碰 NFC 标签");
+  }
+  const machine = await getMachineByPublicId(c.env.DB, publicId);
   if (!machine || machine.enabled !== 1) jsonError(404, "没有找到这台机台");
   return c.json({
     machine: {
@@ -327,8 +343,14 @@ app.get("/api/machines/:publicId", async (c) => {
 app.post("/api/machines/:publicId/login", async (c) => {
   const user = requireUser(c);
   const body = machineLoginSchema.parse(await c.req.json());
+  const publicId = c.req.param("publicId");
+  const ticketKey = `ticket:${publicId}:${body.ticket}`;
+  if (!(await c.env.RATE_LIMIT.get(ticketKey))) {
+    jsonError(403, "本次会话已失效，请重新扫描机台二维码或触碰 NFC 标签");
+  }
+
   const ip = clientIp(c.req.raw);
-  const machine = await getMachineByPublicId(c.env.DB, c.req.param("publicId"));
+  const machine = await getMachineByPublicId(c.env.DB, publicId);
   if (!machine || machine.enabled !== 1) jsonError(404, "没有找到这台机台");
 
   const card = await c.env.DB.prepare(
@@ -388,6 +410,10 @@ app.post("/api/machines/:publicId/login", async (c) => {
     responseCode: result.status || null,
     errorMessage: result.error || null,
   });
+
+  if (result.ok) {
+    await c.env.RATE_LIMIT.delete(ticketKey);
+  }
 
   if (!result.ok) jsonError(502, result.error || "机台暂时没有响应");
   return c.json({ ok: true });

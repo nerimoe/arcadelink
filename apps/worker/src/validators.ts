@@ -24,10 +24,11 @@ export const createMachineSchema = z.object({
 export const patchMachineSchema = createMachineSchema.partial();
 
 export const machineLoginSchema = z.object({
-  cardId: z.string().min(1),
+  cardId: z.string().min(1, "请选择卡片"),
   lat: z.number().gte(-90).lte(90),
   lng: z.number().gte(-180).lte(180),
   accuracy: z.number().min(0).max(10_000),
+  ticket: z.string({ required_error: "缺少会话凭证" }).min(1, "缺少会话凭证"),
   clientTimestamp: z.string().optional(),
 });
 

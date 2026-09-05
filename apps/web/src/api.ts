@@ -150,8 +150,14 @@ export const Api = {
   createCard: (label: string, accessCode: string) =>
     api<{ card: Card }>("/api/cards", { method: "POST", body: JSON.stringify({ label, accessCode }) }),
   deleteCard: (id: string) => api<{ ok: true }>(`/api/cards/${id}`, { method: "DELETE" }),
-  publicMachine: (publicId: string) => api<{ machine: PublicMachine }>(`/api/machines/${publicId}`),
-  loginMachine: (publicId: string, input: { cardId: string; lat: number; lng: number; accuracy: number }) =>
+  publicMachine: (publicId: string, ticket?: string) =>
+    api<{ machine: PublicMachine }>(
+      `/api/machines/${publicId}${ticket ? `?ticket=${encodeURIComponent(ticket)}` : ""}`,
+    ),
+  loginMachine: (
+    publicId: string,
+    input: { cardId: string; lat: number; lng: number; accuracy: number; ticket: string },
+  ) =>
     api<{ ok: true }>(`/api/machines/${publicId}/login`, { method: "POST", body: JSON.stringify(input) }),
   shops: () => api<{ shops: Shop[] }>("/api/merchant/shops"),
   createShop: (input: { name: string; latitude: number; longitude: number; radiusMeters: number }) =>
