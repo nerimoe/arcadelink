@@ -3,6 +3,7 @@ import { Fingerprint, KeyRound, Trash2 } from "lucide-react";
 import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Api, type AuthIdentity, type Passkey } from "../api";
+import { passkeyErrorMessage } from "../passkeys";
 import { RequireLogin } from "./RequireLogin";
 
 export function SettingsPage() {
@@ -31,7 +32,7 @@ export function SettingsPage() {
       await load();
       if (setup) navigate(next, { replace: true });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法添加 Passkey");
+      setError(passkeyErrorMessage(caught));
     } finally {
       setBusy(false);
     }

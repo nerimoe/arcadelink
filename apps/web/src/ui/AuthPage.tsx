@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Fingerprint, Gamepad2 } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
 import { Api } from "../api";
+import { passkeyErrorMessage } from "../passkeys";
 import { useAuth } from "./AuthContext";
 
 export function AuthPage() {
@@ -23,7 +24,7 @@ export function AuthPage() {
       await refresh();
       navigate(redirectTo, { replace: true });
     } catch (caught) {
-      setPasskeyError(caught instanceof Error ? caught.message : "Passkey 登录失败");
+      setPasskeyError(passkeyErrorMessage(caught));
     } finally {
       setBusy(false);
     }
