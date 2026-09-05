@@ -9,7 +9,8 @@ export type User = {
   id: string;
   username: string;
   displayName: string;
-  role: "user" | "merchant" | "admin";
+  role: "user" | "admin";
+  hasShops?: boolean;
 };
 
 export type Card = {

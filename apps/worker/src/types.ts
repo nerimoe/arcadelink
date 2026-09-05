@@ -21,7 +21,7 @@ export type AuthUser = {
   id: string;
   username: string;
   displayName: string;
-  role: "user" | "merchant" | "admin";
+  role: "user" | "admin";
   bannedAt: string | null;
 };
 

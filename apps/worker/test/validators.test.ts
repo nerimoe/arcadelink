@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessCodeSchema } from "../src/validators";
+import { accessCodeSchema, setUserRoleSchema } from "../src/validators";
 
 describe("accessCodeSchema", () => {
   it("accepts valid 20-digit access codes not starting with 3", () => {
@@ -18,3 +18,15 @@ describe("accessCodeSchema", () => {
     expect(() => accessCodeSchema.parse("1234567890123456789a")).toThrow();
   });
 });
+
+describe("setUserRoleSchema", () => {
+  it("accepts user and admin roles", () => {
+    expect(setUserRoleSchema.parse({ userId: "u1", role: "user" })).toEqual({ userId: "u1", role: "user" });
+    expect(setUserRoleSchema.parse({ userId: "u2", role: "admin" })).toEqual({ userId: "u2", role: "admin" });
+  });
+
+  it("rejects merchant role", () => {
+    expect(() => setUserRoleSchema.parse({ userId: "u3", role: "merchant" })).toThrow();
+  });
+});
+

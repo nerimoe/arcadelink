@@ -5,7 +5,6 @@ import { RequireLogin } from "./RequireLogin";
 
 const roleLabels: Record<User["role"], string> = {
   user: "玩家",
-  merchant: "店家",
   admin: "管理员",
 };
 

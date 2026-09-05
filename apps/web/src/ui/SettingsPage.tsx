@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Fingerprint, KeyRound, Plus, Trash2 } from "lucide-react";
+import { Fingerprint, KeyRound, Plus, Store, Trash2 } from "lucide-react";
 import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Api, type AuthIdentity, type Passkey } from "../api";
@@ -107,6 +107,18 @@ export function SettingsPage() {
             {!browserSupportsWebAuthn() && <p className="text-sm text-ink/60">当前设备不支持 Passkey。</p>}
           </div>
           {setup && <Link className="mt-4 inline-flex text-sm font-medium text-mint" to={next} replace>稍后设置</Link>}
+        </section>
+
+        <section className="rounded border border-black/10 bg-panel p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 font-semibold"><Store size={18} />店家管理</h2>
+              <p className="mt-1 text-sm text-ink/60">管理或创建你的街机店铺与机台登录入口</p>
+            </div>
+            <Link to="/merchant" className="focus-ring inline-flex min-h-9 items-center justify-center rounded bg-ink px-4 text-sm font-medium text-white">
+              前往管理
+            </Link>
+          </div>
         </section>
       </section>
     </RequireLogin>

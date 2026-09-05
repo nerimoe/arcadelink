@@ -61,12 +61,6 @@ export function requireUser(c: Context<AppBindings>): AuthUser {
   return user;
 }
 
-export function requireMerchant(c: Context<AppBindings>): AuthUser {
-  const user = requireUser(c);
-  if (user.role !== "merchant" && user.role !== "admin") jsonError(403, "你没有店铺管理权限");
-  return user;
-}
-
 export function requireAdmin(c: Context<AppBindings>): AuthUser {
   const user = requireUser(c);
   if (user.role !== "admin") jsonError(403, "你没有管理权限");

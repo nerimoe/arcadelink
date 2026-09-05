@@ -7,7 +7,7 @@ import { MapPicker } from "./MapPicker";
 import { RequireLogin } from "./RequireLogin";
 
 export function MerchantPage() {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedShopId, setSelectedShopId] = useState("");
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -48,26 +48,29 @@ export function MerchantPage() {
   const selectedShop = shops.find((shop) => shop.id === selectedShopId);
 
   return (
-    <RequireLogin roles={["merchant", "admin"]}>
+    <RequireLogin>
       <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <div className="grid content-start gap-4">
           <ShopForm
             onCreated={async (shop) => {
               await loadShops();
               setSelectedShopId(shop.id);
+              void refresh();
             }}
           />
           {error && <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
-          <div className="rounded border border-black/10 bg-panel p-4">
-            <h2 className="mb-3 font-semibold">店铺</h2>
-            <select className="focus-ring min-h-11 w-full rounded border border-black/10 bg-white px-3" value={selectedShopId} onChange={(event) => setSelectedShopId(event.target.value)}>
-              {shops.map((shop) => (
-                <option key={shop.id} value={shop.id}>
-                  {shop.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {shops.length > 0 && (
+            <div className="rounded border border-black/10 bg-panel p-4">
+              <h2 className="mb-3 font-semibold">店铺</h2>
+              <select className="focus-ring min-h-11 w-full rounded border border-black/10 bg-white px-3" value={selectedShopId} onChange={(event) => setSelectedShopId(event.target.value)}>
+                {shops.map((shop) => (
+                  <option key={shop.id} value={shop.id}>
+                    {shop.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {selectedShop && (
             <>
               <MachineForm shopId={selectedShop.id} onCreated={() => loadShopDetails(selectedShop.id)} />
@@ -77,13 +80,23 @@ export function MerchantPage() {
         </div>
 
         <div className="grid content-start gap-4">
-          <h1 className="text-2xl font-semibold">{selectedShop?.name || "店铺管理"}</h1>
-          {machines.length === 0 ? (
-            <div className="rounded border border-dashed border-black/20 bg-white p-6 text-ink/60">暂无设备</div>
+          <h1 className="text-2xl font-semibold">{selectedShop?.name || "店家管理"}</h1>
+          {!selectedShop ? (
+            <div className="rounded border border-dashed border-black/20 bg-white p-8 text-center text-ink/60">
+              <Store size={32} className="mx-auto mb-2 text-ink/40" />
+              <p className="font-medium text-ink">还没有店铺</p>
+              <p className="mt-1 text-sm">请在左侧填写店铺信息并创建你的第一家店铺</p>
+            </div>
           ) : (
-            machines.map((machine) => <MachineCard key={machine.id} machine={machine} onChanged={() => selectedShop && loadShopDetails(selectedShop.id)} />)
+            <>
+              {machines.length === 0 ? (
+                <div className="rounded border border-dashed border-black/20 bg-white p-6 text-ink/60">暂无设备</div>
+              ) : (
+                machines.map((machine) => <MachineCard key={machine.id} machine={machine} onChanged={() => selectedShop && loadShopDetails(selectedShop.id)} />)
+              )}
+              <EventsPanel events={events} />
+            </>
           )}
-          <EventsPanel events={events} />
         </div>
       </section>
     </RequireLogin>

@@ -33,7 +33,7 @@ export const machineLoginSchema = z.object({
 
 export const setUserRoleSchema = z.object({
   userId: z.string().min(1),
-  role: z.enum(["user", "merchant", "admin"]),
+  role: z.enum(["user", "admin"]),
 });
 
 export const passkeyLabelSchema = z.string().trim().min(1).max(60);

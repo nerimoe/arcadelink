@@ -32,7 +32,7 @@ function Shell() {
           </Link>
           <nav className="flex items-center gap-1 text-sm">
             <NavItem to="/cards" icon={<IdCard size={16} />} label="卡片" />
-            {(user?.role === "merchant" || user?.role === "admin") && <NavItem to="/merchant" icon={<Store size={16} />} label="店家" />}
+            {(user?.hasShops || user?.role === "admin") && <NavItem to="/merchant" icon={<Store size={16} />} label="店家" />}
             {user?.role === "admin" && <NavItem to="/admin" icon={<Shield size={16} />} label="管理" />}
             {user && <NavItem to="/settings" icon={<UserRound size={16} />} label="账号" />}
             {user ? (

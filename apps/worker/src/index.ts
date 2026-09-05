@@ -5,7 +5,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 import type { Context } from "hono";
 import { z } from "zod";
-import { attachUser, createSession, destroySession, requireAdmin, requireMerchant, requireUser } from "./auth";
+import { attachUser, createSession, destroySession, requireAdmin, requireUser } from "./auth";
 import { encryptSecret, decryptSecret, randomToken } from "./crypto";
 import { canAccessShop, getMachineByPublicId, listShopsForUser } from "./db";
 import { checkLocation, clampShopRadius } from "./geo";
@@ -61,9 +61,17 @@ app.use("*", attachUser);
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
-app.get("/api/me", (c) => {
+app.get("/api/me", async (c) => {
   const user = c.get("user");
-  return c.json({ user: user ? publicUser(user) : null });
+  if (!user) return c.json({ user: null });
+  const hasShops =
+    user.role === "admin" ||
+    Boolean(
+      await c.env.DB.prepare("SELECT 1 FROM shop_members WHERE user_id = ? LIMIT 1")
+        .bind(user.id)
+        .first(),
+    );
+  return c.json({ user: { ...publicUser(user), hasShops } });
 });
 
 app.post("/api/auth/logout", async (c) => {
@@ -386,12 +394,12 @@ app.post("/api/machines/:publicId/login", async (c) => {
 });
 
 app.get("/api/merchant/shops", async (c) => {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   return c.json({ shops: await listShopsForUser(c, user) });
 });
 
 app.post("/api/merchant/shops", async (c) => {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   const body = createShopSchema.parse(await c.req.json());
   const shopId = crypto.randomUUID();
   await c.env.DB.batch([
@@ -404,7 +412,7 @@ app.post("/api/merchant/shops", async (c) => {
 });
 
 app.get("/api/merchant/shop-members", async (c) => {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   const shopId = c.req.query("shopId");
   if (!shopId) jsonError(400, "请选择店铺");
   if (!(await canAccessShop(c, user, shopId))) jsonError(403, "你没有这个店铺的管理权限");
@@ -423,28 +431,27 @@ app.get("/api/merchant/shop-members", async (c) => {
 });
 
 app.post("/api/merchant/shop-members", async (c) => {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   const body = shopMemberSchema.parse(await c.req.json());
   if (!(await canAccessShop(c, user, body.shopId))) jsonError(403, "你没有这个店铺的管理权限");
   const target = await c.env.DB.prepare(
-    `SELECT users.id, users.role FROM users
+    `SELECT users.id FROM users
      JOIN auth_identities AS identities ON identities.user_id = users.id AND identities.provider = 'munet'
      WHERE users.id = ? OR lower(identities.username) = lower(?)`,
   )
     .bind(body.user, body.user)
-    .first<{ id: string; role: AuthUser["role"] }>();
+    .first<{ id: string }>();
   if (!target) jsonError(404, "没有找到这个用户");
-  await c.env.DB.batch([
-    c.env.DB.prepare("INSERT OR REPLACE INTO shop_members (id, shop_id, user_id, role) VALUES (COALESCE((SELECT id FROM shop_members WHERE shop_id = ? AND user_id = ?), ?), ?, ?, ?)")
-      .bind(body.shopId, target.id, crypto.randomUUID(), body.shopId, target.id, body.role),
-    c.env.DB.prepare("UPDATE users SET role = CASE WHEN role = 'user' THEN 'merchant' ELSE role END, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .bind(target.id),
-  ]);
+  await c.env.DB.prepare(
+    "INSERT OR REPLACE INTO shop_members (id, shop_id, user_id, role) VALUES (COALESCE((SELECT id FROM shop_members WHERE shop_id = ? AND user_id = ?), ?), ?, ?, ?)",
+  )
+    .bind(body.shopId, target.id, crypto.randomUUID(), body.shopId, target.id, body.role)
+    .run();
   return c.json({ ok: true });
 });
 
 app.delete("/api/merchant/shop-members/:id", async (c) => {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   const member = await c.env.DB.prepare("SELECT id, shop_id, role FROM shop_members WHERE id = ?")
     .bind(c.req.param("id"))
     .first<{ id: string; shop_id: string; role: string }>();
@@ -461,7 +468,7 @@ app.delete("/api/merchant/shop-members/:id", async (c) => {
 });
 
 app.get("/api/merchant/machines", async (c) => {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   const shopId = c.req.query("shopId");
   if (!shopId) jsonError(400, "请选择店铺");
   if (!(await canAccessShop(c, user, shopId))) jsonError(403, "你没有这个店铺的管理权限");
@@ -474,7 +481,7 @@ app.get("/api/merchant/machines", async (c) => {
 });
 
 app.post("/api/merchant/machines", async (c) => {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   const body = createMachineSchema.parse(await c.req.json());
   if (!(await canAccessShop(c, user, body.shopId))) jsonError(403, "你没有这个店铺的管理权限");
   const id = crypto.randomUUID();
@@ -491,7 +498,7 @@ app.post("/api/merchant/machines", async (c) => {
 app.patch("/api/merchant/machines/:id", async (c) => patchMachine(c, c.req.param("id")));
 
 app.delete("/api/merchant/machines/:id", async (c) => {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   const machine = await c.env.DB.prepare("SELECT id, shop_id FROM machines WHERE id = ?")
     .bind(c.req.param("id"))
     .first<{ id: string; shop_id: string }>();
@@ -502,7 +509,7 @@ app.delete("/api/merchant/machines/:id", async (c) => {
 });
 
 app.get("/api/merchant/login-events", async (c) => {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   const shopId = c.req.query("shopId");
   const machineId = c.req.query("machineId");
   const limit = Math.min(Number(c.req.query("limit") || "50"), 100);
@@ -545,7 +552,7 @@ app.onError((error, c) => {
 });
 
 async function patchMachine(c: Context<AppBindings>, id: string) {
-  const user = requireMerchant(c);
+  const user = requireUser(c);
   const body = patchMachineSchema.parse(await c.req.json());
   const machine = await c.env.DB.prepare("SELECT id, shop_id FROM machines WHERE id = ?")
     .bind(id)
