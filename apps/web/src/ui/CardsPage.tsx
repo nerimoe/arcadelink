@@ -10,15 +10,20 @@ export function CardsPage() {
   const [label, setLabel] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [authorizationRequired, setAuthorizationRequired] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const load = async () => {
     if (!user) return;
     const result = await Api.cards();
     setCards(result.cards);
+    setAuthorizationRequired(result.authorizationRequired);
+    setSyncError(result.syncError);
   };
 
   useEffect(() => {
-    void load();
+    void load().catch((caught) => setError(caught instanceof Error ? caught.message : "无法加载卡片"));
   }, [user]);
 
   const create = async (event: FormEvent) => {
@@ -63,13 +68,33 @@ export function CardsPage() {
               <Plus size={18} />
               添加卡片
             </button>
-            <a
-              className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded border border-black/15 bg-white px-4 font-medium"
-              href="/api/auth/munet?next=/cards"
-            >
-              <RefreshCw size={18} />
-              与 MuNET 同步
-            </a>
+            {syncError && <p className="text-sm text-ink/60">{syncError}</p>}
+            {authorizationRequired ? (
+              <a
+                className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded border border-black/15 bg-white px-4 font-medium"
+                href="/api/auth/munet?next=/cards"
+              >
+                <RefreshCw size={18} />
+                重新连接 MuNET
+              </a>
+            ) : (
+              <button
+                className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded border border-black/15 bg-white px-4 font-medium disabled:opacity-60"
+                disabled={syncing}
+                type="button"
+                onClick={async () => {
+                  setSyncing(true);
+                  try {
+                    await load();
+                  } finally {
+                    setSyncing(false);
+                  }
+                }}
+              >
+                <RefreshCw size={18} className={syncing ? "animate-spin" : ""} />
+                同步 MuNET 卡片
+              </button>
+            )}
           </div>
         </form>
         <div className="grid content-start gap-3">

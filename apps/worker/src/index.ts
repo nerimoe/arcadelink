@@ -1,3 +1,4 @@
+import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -12,6 +13,7 @@ import { allowedOrigins, assertAllowedOrigin, clientIp, jsonError } from "./http
 import { assertNotBanned, enforceRateLimits, loginRateLimitRules } from "./risk";
 import { sendHinataCard } from "./hinata";
 import { finishMunetAuth, munetAuthorizeUrl } from "./munet";
+import { munetCardStatements, munetCredentialStatement, syncMunetCards } from "./oauth";
 import { authenticationOptions, finishAuthentication, finishRegistration, registrationOptions } from "./passkeys";
 import type { AppBindings, AuthUser } from "./types";
 import {
@@ -20,6 +22,8 @@ import {
   createMachineSchema,
   createShopSchema,
   machineLoginSchema,
+  passkeyLabelSchema,
+  passkeyNameSchema,
   patchMachineSchema,
   setUserRoleSchema,
   shopMemberSchema,
@@ -92,7 +96,9 @@ app.get("/api/auth/passkey/register/options", async (c) => {
 
 app.post("/api/auth/passkey/register", async (c) => {
   const user = requireUser(c);
-  await finishRegistration(c, user, await c.req.json());
+  const body = await c.req.json<{ credential: RegistrationResponseJSON; name?: unknown }>();
+  const name = body.name === undefined ? undefined : passkeyLabelSchema.parse(body.name);
+  await finishRegistration(c, user, body.credential, name);
   return c.json({ ok: true }, 201);
 });
 
@@ -106,7 +112,7 @@ app.get("/api/account", async (c) => {
     ).bind(user.id).all(),
     c.env.DB.prepare(
       `SELECT id, name, device_type AS deviceType, backed_up AS backedUp,
-              created_at AS createdAt, last_used_at AS lastUsedAt
+              provider_name AS providerName, created_at AS createdAt, last_used_at AS lastUsedAt
        FROM passkeys WHERE user_id = ? ORDER BY created_at DESC`,
     ).bind(user.id).all(),
   ]);
@@ -118,6 +124,16 @@ app.delete("/api/account/passkeys/:id", async (c) => {
   await c.env.DB.prepare("DELETE FROM passkeys WHERE id = ? AND user_id = ?")
     .bind(c.req.param("id"), user.id)
     .run();
+  return c.json({ ok: true });
+});
+
+app.patch("/api/account/passkeys/:id", async (c) => {
+  const user = requireUser(c);
+  const body = passkeyNameSchema.parse(await c.req.json());
+  const result = await c.env.DB.prepare(
+    "UPDATE passkeys SET name = ? WHERE id = ? AND user_id = ?",
+  ).bind(body.name, c.req.param("id"), user.id).run();
+  if (result.meta.changes === 0) jsonError(404, "没有找到这个 Passkey");
   return c.json({ ok: true });
 });
 
@@ -154,16 +170,17 @@ app.get("/callback", async (c) => {
       redirectUri: `${c.env.APP_ORIGIN}/callback`,
     });
     const identity = await c.env.DB.prepare(
-      `SELECT users.id, users.banned_at AS bannedAt
+      `SELECT users.id, users.banned_at AS bannedAt, identities.id AS identityId
        FROM auth_identities AS identities
        JOIN users ON users.id = identities.user_id
        WHERE identities.provider = 'munet' AND identities.provider_subject = ?`,
     )
       .bind(munet.subject)
-      .first<{ id: string; bannedAt: string | null }>();
+      .first<{ id: string; bannedAt: string | null; identityId: string }>();
     if (identity?.bannedAt) return fail("这个账号暂时无法使用");
 
     const userId = identity?.id ?? crypto.randomUUID();
+    const identityId = identity?.identityId ?? crypto.randomUUID();
     const isNewUser = !identity;
     const statements: D1PreparedStatement[] = [];
     if (identity) {
@@ -184,24 +201,13 @@ app.get("/callback", async (c) => {
           `INSERT INTO auth_identities
              (id, user_id, provider, provider_subject, username, display_name, last_login_at)
            VALUES (?, ?, 'munet', ?, ?, ?, CURRENT_TIMESTAMP)`,
-        ).bind(crypto.randomUUID(), userId, munet.subject, munet.username, munet.name),
+        ).bind(identityId, userId, munet.subject, munet.username, munet.name),
       );
     }
     statements.push(
-      c.env.DB.prepare(
-        "UPDATE cards SET disabled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND source = 'munet'",
-      ).bind(userId),
+      await munetCredentialStatement(c, identityId, munet.tokens),
+      ...munetCardStatements(c.env.DB, userId, munet.cards),
     );
-    for (const card of munet.cards) {
-      statements.push(
-        c.env.DB.prepare(
-          `INSERT INTO cards (id, user_id, label, card_type, access_code, source)
-           VALUES (?, ?, ?, 'aime', ?, 'munet')
-           ON CONFLICT(user_id, access_code) DO UPDATE SET
-             label = excluded.label, source = 'munet', disabled_at = NULL, updated_at = CURRENT_TIMESTAMP`,
-        ).bind(crypto.randomUUID(), userId, card.remark?.trim() || "MuNET 卡片", card.luid),
-      );
-    }
     if (statements.length) await c.env.DB.batch(statements);
     await createSession(c, userId);
     return c.redirect(isNewUser ? `/settings?setup=passkey&next=${encodeURIComponent(next)}` : next);
@@ -246,12 +252,21 @@ app.get("/api/admin/users", async (c) => {
 
 app.get("/api/cards", async (c) => {
   const user = requireUser(c);
+  let authorizationRequired = false;
+  let syncError: string | null = null;
+  try {
+    const sync = await syncMunetCards(c, user.id);
+    authorizationRequired = sync.authorizationRequired;
+  } catch (error) {
+    console.error(error);
+    syncError = "MuNET 暂时无法同步，显示上次结果";
+  }
   const cards = await c.env.DB.prepare(
     "SELECT id, label, card_type AS cardType, access_code AS accessCode, source, disabled_at AS disabledAt, created_at AS createdAt FROM cards WHERE user_id = ? ORDER BY created_at DESC",
   )
     .bind(user.id)
     .all();
-  return c.json({ cards: cards.results });
+  return c.json({ cards: cards.results, authorizationRequired, syncError });
 });
 
 app.post("/api/cards", async (c) => {

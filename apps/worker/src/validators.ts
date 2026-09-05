@@ -36,6 +36,12 @@ export const setUserRoleSchema = z.object({
   role: z.enum(["user", "merchant", "admin"]),
 });
 
+export const passkeyLabelSchema = z.string().trim().min(1).max(60);
+
+export const passkeyNameSchema = z.object({
+  name: passkeyLabelSchema,
+});
+
 export const shopMemberSchema = z.object({
   shopId: z.string().min(1),
   user: z.string().trim().min(1).max(80),

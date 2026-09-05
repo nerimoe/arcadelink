@@ -100,6 +100,7 @@ export type AuthIdentity = {
 export type Passkey = {
   id: string;
   name: string;
+  providerName?: string | null;
   deviceType: string;
   backedUp: number;
   createdAt: string;
@@ -127,12 +128,20 @@ export const Api = {
     api<{ ok: true }>("/api/auth/passkey", { method: "POST", body: JSON.stringify(response) }),
   passkeyRegistrationOptions: () =>
     api<PublicKeyCredentialCreationOptionsJSON>("/api/auth/passkey/register/options"),
-  registerPasskey: (response: RegistrationResponseJSON) =>
-    api<{ ok: true }>("/api/auth/passkey/register", { method: "POST", body: JSON.stringify(response) }),
+  registerPasskey: (credential: RegistrationResponseJSON, name?: string) =>
+    api<{ ok: true }>("/api/auth/passkey/register", {
+      method: "POST",
+      body: JSON.stringify({ credential, name }),
+    }),
   logout: () => api<{ ok: true }>("/api/auth/logout", { method: "POST" }),
   account: () => api<{ identities: AuthIdentity[]; passkeys: Passkey[] }>("/api/account"),
   deletePasskey: (id: string) => api<{ ok: true }>(`/api/account/passkeys/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  cards: () => api<{ cards: Card[] }>("/api/cards"),
+  renamePasskey: (id: string, name: string) =>
+    api<{ ok: true }>(`/api/account/passkeys/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+  cards: () => api<{ cards: Card[]; authorizationRequired: boolean; syncError: string | null }>("/api/cards"),
   createCard: (label: string, accessCode: string) =>
     api<{ card: Card }>("/api/cards", { method: "POST", body: JSON.stringify({ label, accessCode }) }),
   deleteCard: (id: string) => api<{ ok: true }>(`/api/cards/${id}`, { method: "DELETE" }),
