@@ -186,7 +186,7 @@ function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => v
 }
 
 function MembersPanel({ shopId, members, onChanged }: { shopId: string; members: ShopMember[]; onChanged: () => void | Promise<void> }) {
-  const [email, setEmail] = useState("");
+  const [memberUser, setMemberUser] = useState("");
   const [role, setRole] = useState<ShopMember["role"]>("staff");
   const [busy, setBusy] = useState(false);
 
@@ -194,8 +194,8 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
     event.preventDefault();
     setBusy(true);
     try {
-      await Api.addShopMember({ shopId, email, role });
-      setEmail("");
+      await Api.addShopMember({ shopId, user: memberUser, role });
+      setMemberUser("");
       setRole("staff");
       await onChanged();
     } finally {
@@ -210,7 +210,7 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
         店铺成员
       </h2>
       <form className="mt-4 grid gap-3" onSubmit={submit}>
-        <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="成员邮箱" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="MuNET 用户名或 ID" value={memberUser} onChange={(event) => setMemberUser(event.target.value)} required />
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <select className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" value={role} onChange={(event) => setRole(event.target.value as ShopMember["role"])}>
             <option value="staff">店员</option>
@@ -223,8 +223,8 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
         {members.map((member) => (
           <div key={member.id} className="flex items-center justify-between gap-3 rounded border border-black/10 bg-white p-3">
             <div className="min-w-0">
-              <p className="truncate font-medium">{member.email}</p>
-              <p className="text-sm text-ink/60">{member.role === "owner" ? "负责人" : "店员"}</p>
+              <p className="truncate font-medium">{member.displayName}</p>
+              <p className="text-sm text-ink/60">@{member.username} · {member.role === "owner" ? "负责人" : "店员"}</p>
             </div>
             <button
               title="移除成员"
@@ -330,7 +330,7 @@ function EventsPanel({ events }: { events: LoginEvent[] }) {
                 <time className="text-xs text-ink/50">{new Date(event.createdAt).toLocaleString()}</time>
               </div>
               <p className="mt-1 text-sm text-ink/60">
-                {event.userEmail || "未知用户"} · {event.cardLabel || "卡片"}{typeof event.distanceMeters === "number" ? ` · 约 ${Math.round(event.distanceMeters)}m` : ""}
+                {event.userName || "未知用户"} · {event.cardLabel || "卡片"}{typeof event.distanceMeters === "number" ? ` · 约 ${Math.round(event.distanceMeters)}m` : ""}
               </p>
               {event.errorMessage && <p className="mt-1 text-sm text-coral">{event.errorMessage}</p>}
             </article>

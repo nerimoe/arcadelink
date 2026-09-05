@@ -1,0 +1,187 @@
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+  type AuthenticationResponseJSON,
+  type RegistrationResponseJSON,
+} from "@simplewebauthn/server";
+import type { Context } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { randomToken } from "./crypto";
+import { jsonError, nowIso } from "./http";
+import type { AppBindings, AuthUser } from "./types";
+
+const challengeCookie = "arcadelink_passkey_challenge";
+const challengeSeconds = 300;
+
+type PasskeyRow = {
+  id: string;
+  user_id: string;
+  public_key: ArrayBuffer;
+  counter: number;
+  transports: string | null;
+};
+
+export async function registrationOptions(c: Context<AppBindings>, user: AuthUser) {
+  const passkeys = await c.env.DB.prepare("SELECT id, transports FROM passkeys WHERE user_id = ?")
+    .bind(user.id)
+    .all<{ id: string; transports: string | null }>();
+  const options = await generateRegistrationOptions({
+    rpName: "ArcadeLink",
+    rpID: rp(c).id,
+    userID: new TextEncoder().encode(user.id),
+    userName: user.username,
+    userDisplayName: user.displayName,
+    attestationType: "none",
+    excludeCredentials: passkeys.results.map((passkey) => {
+      const transports = parseTransports(passkey.transports);
+      return { id: passkey.id, ...(transports ? { transports } : {}) };
+    }),
+    authenticatorSelection: { residentKey: "required", userVerification: "required" },
+  });
+  await saveChallenge(c, "register", options.challenge, user.id);
+  return options;
+}
+
+export async function finishRegistration(
+  c: Context<AppBindings>,
+  user: AuthUser,
+  response: RegistrationResponseJSON,
+): Promise<void> {
+  const challenge = await takeChallenge(c, "register", user.id);
+  const verification = await verifyRegistrationResponse({
+    response,
+    expectedChallenge: challenge,
+    expectedOrigin: rp(c).origin,
+    expectedRPID: rp(c).id,
+    requireUserVerification: true,
+  });
+  if (!verification.verified || !verification.registrationInfo) jsonError(400, "Passkey 验证失败");
+  const { credential, credentialBackedUp, credentialDeviceType } = verification.registrationInfo;
+  await c.env.DB.prepare(
+    `INSERT INTO passkeys
+       (id, user_id, public_key, counter, transports, device_type, backed_up, name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      credential.id,
+      user.id,
+      toArrayBuffer(credential.publicKey),
+      credential.counter,
+      JSON.stringify(credential.transports ?? []),
+      credentialDeviceType,
+      credentialBackedUp ? 1 : 0,
+      "Passkey",
+    )
+    .run();
+}
+
+export async function authenticationOptions(c: Context<AppBindings>) {
+  const options = await generateAuthenticationOptions({
+    rpID: rp(c).id,
+    userVerification: "required",
+  });
+  await saveChallenge(c, "authenticate", options.challenge, null);
+  return options;
+}
+
+export async function finishAuthentication(
+  c: Context<AppBindings>,
+  response: AuthenticationResponseJSON,
+): Promise<string> {
+  const challenge = await takeChallenge(c, "authenticate", null);
+  const passkey = await c.env.DB.prepare(
+    "SELECT id, user_id, public_key, counter, transports FROM passkeys WHERE id = ?",
+  )
+    .bind(response.id)
+    .first<PasskeyRow>();
+  if (!passkey) jsonError(401, "无法识别这个 Passkey");
+  const transports = parseTransports(passkey.transports);
+  const verification = await verifyAuthenticationResponse({
+    response,
+    expectedChallenge: challenge,
+    expectedOrigin: rp(c).origin,
+    expectedRPID: rp(c).id,
+    credential: {
+      id: passkey.id,
+      publicKey: new Uint8Array(passkey.public_key),
+      counter: passkey.counter,
+      ...(transports ? { transports } : {}),
+    },
+    requireUserVerification: true,
+  });
+  if (!verification.verified) jsonError(401, "Passkey 验证失败");
+  await c.env.DB.prepare("UPDATE passkeys SET counter = ?, last_used_at = CURRENT_TIMESTAMP WHERE id = ?")
+    .bind(verification.authenticationInfo.newCounter, passkey.id)
+    .run();
+  return passkey.user_id;
+}
+
+async function saveChallenge(
+  c: Context<AppBindings>,
+  purpose: "register" | "authenticate",
+  challenge: string,
+  userId: string | null,
+): Promise<void> {
+  const id = randomToken(24);
+  const expiresAt = new Date(Date.now() + challengeSeconds * 1000).toISOString();
+  const previousId = getCookie(c, challengeCookie);
+  const statements = [
+    c.env.DB.prepare("DELETE FROM auth_challenges WHERE expires_at <= ?").bind(nowIso()),
+  ];
+  if (previousId) {
+    statements.push(c.env.DB.prepare("DELETE FROM auth_challenges WHERE id = ?").bind(previousId));
+  }
+  statements.push(
+    c.env.DB.prepare(
+      "INSERT INTO auth_challenges (id, user_id, purpose, challenge, expires_at) VALUES (?, ?, ?, ?, ?)",
+    ).bind(id, userId, purpose, challenge, expiresAt),
+  );
+  await c.env.DB.batch(statements);
+  setCookie(c, challengeCookie, id, {
+    httpOnly: true,
+    secure: new URL(c.req.url).protocol === "https:",
+    sameSite: "Strict",
+    path: "/api/auth/passkey",
+    maxAge: challengeSeconds,
+  });
+}
+
+async function takeChallenge(
+  c: Context<AppBindings>,
+  purpose: "register" | "authenticate",
+  userId: string | null,
+): Promise<string> {
+  const id = getCookie(c, challengeCookie);
+  deleteCookie(c, challengeCookie, { path: "/api/auth/passkey" });
+  if (!id) jsonError(400, "Passkey 请求已过期");
+  const row = await c.env.DB.prepare(
+    "DELETE FROM auth_challenges WHERE id = ? AND purpose = ? AND user_id IS ? AND expires_at > ? RETURNING challenge",
+  )
+    .bind(id, purpose, userId, nowIso())
+    .first<{ challenge: string }>();
+  if (!row) jsonError(400, "Passkey 请求已过期");
+  return row.challenge;
+}
+
+function rp(c: Context<AppBindings>): { id: string; origin: string } {
+  const origin = new URL(c.env.APP_ORIGIN).origin;
+  return { id: new URL(origin).hostname, origin };
+}
+
+function parseTransports(value: string | null): string[] | undefined {
+  if (!value) return undefined;
+  try {
+    const transports = JSON.parse(value);
+    return Array.isArray(transports) && transports.every((item) => typeof item === "string")
+      ? transports
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function toArrayBuffer(value: Uint8Array): ArrayBuffer {
+  return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength) as ArrayBuffer;
+}

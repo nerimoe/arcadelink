@@ -36,7 +36,6 @@
   "vars": {
     "APP_ORIGIN": "https://link.neri.moe",
     "MUNET_CLIENT_ID": "5cac2374-2d27-4e26-a710-fe1fe9e94b4a",
-    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
     "EXTRA_ALLOWED_ORIGINS": "http://localhost:5173"
   }
 }

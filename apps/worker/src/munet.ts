@@ -9,6 +9,8 @@ const cardSchema = z.object({
 });
 const profileSchema = z.object({
   sub: z.string().min(1),
+  name: z.string().min(1),
+  preferred_username: z.string().min(1),
 });
 const cardsSchema = cardSchema.array();
 
@@ -31,7 +33,7 @@ export async function finishMunetAuth(input: {
   clientSecret: string;
   code: string;
   redirectUri: string;
-}): Promise<{ subject: string; cards: MunetCard[] }> {
+}): Promise<{ subject: string; name: string; username: string; cards: MunetCard[] }> {
   const tokenResponse = await fetch(`${authOrigin}/connect/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -57,5 +59,10 @@ export async function finishMunetAuth(input: {
   });
   if (!cardsResponse.ok) throw new Error("无法读取 MuNET 卡片");
 
-  return { subject: profile.sub, cards: cardsSchema.parse(await cardsResponse.json()) };
+  return {
+    subject: profile.sub,
+    name: profile.name,
+    username: profile.preferred_username,
+    cards: cardsSchema.parse(await cardsResponse.json()),
+  };
 }

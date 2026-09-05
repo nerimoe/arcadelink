@@ -1,16 +1,6 @@
 import { z } from "zod";
 
-export const emailSchema = z.string().email().transform((value) => value.toLowerCase().trim());
-export const passwordSchema = z.string().min(8).max(128);
 export const accessCodeSchema = z.string().regex(/^\d{20}$/, "请输入完整的卡片号码");
-
-export const registerSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema,
-  turnstileToken: z.string().optional(),
-});
-
-export const loginSchema = registerSchema;
 
 export const createCardSchema = z.object({
   label: z.string().trim().min(1).max(40),
@@ -39,17 +29,16 @@ export const machineLoginSchema = z.object({
   lng: z.number().gte(-180).lte(180),
   accuracy: z.number().min(0).max(10_000),
   clientTimestamp: z.string().optional(),
-  turnstileToken: z.string().optional(),
 });
 
 export const setUserRoleSchema = z.object({
-  email: emailSchema,
+  userId: z.string().min(1),
   role: z.enum(["user", "merchant", "admin"]),
 });
 
 export const shopMemberSchema = z.object({
   shopId: z.string().min(1),
-  email: emailSchema,
+  user: z.string().trim().min(1).max(80),
   role: z.enum(["owner", "staff"]).default("staff"),
 });
 

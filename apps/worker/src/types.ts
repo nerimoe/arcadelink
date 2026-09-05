@@ -4,7 +4,6 @@ export type Env = Cloudflare.Env & {
   URL_ENCRYPTION_KEY: string;
   MUNET_CLIENT_ID: string;
   MUNET_CLIENT_SECRET: string;
-  TURNSTILE_SECRET_KEY?: string;
   EXTRA_ALLOWED_ORIGINS?: string;
 };
 
@@ -20,7 +19,8 @@ export type AppBindings = {
 
 export type AuthUser = {
   id: string;
-  email: string;
+  username: string;
+  displayName: string;
   role: "user" | "merchant" | "admin";
   bannedAt: string | null;
 };

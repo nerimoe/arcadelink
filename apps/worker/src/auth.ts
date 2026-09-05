@@ -18,16 +18,19 @@ export const attachUser: MiddlewareHandler<AppBindings> = async (c, next) => {
 
   const tokenHash = await sha256(token);
   const row = await c.env.DB.prepare(
-    `SELECT sessions.id AS session_id, users.id, users.email, users.role, users.banned_at
+    `SELECT sessions.id AS session_id, users.id, identities.username, identities.display_name,
+            users.role, users.banned_at
      FROM sessions
      JOIN users ON users.id = sessions.user_id
+     JOIN auth_identities AS identities ON identities.user_id = users.id AND identities.provider = 'munet'
      WHERE sessions.token_hash = ? AND sessions.expires_at > ?`,
   )
     .bind(tokenHash, nowIso())
     .first<{
       session_id: string;
       id: string;
-      email: string;
+      username: string;
+      display_name: string;
       role: AuthUser["role"];
       banned_at: string | null;
     }>();
@@ -43,7 +46,8 @@ export const attachUser: MiddlewareHandler<AppBindings> = async (c, next) => {
   c.set("sessionId", row.session_id);
   c.set("user", {
     id: row.id,
-    email: row.email,
+    username: row.username,
+    displayName: row.display_name,
     role: row.role,
     bannedAt: row.banned_at,
   });
@@ -93,9 +97,4 @@ export async function destroySession(c: Context<AppBindings>): Promise<void> {
 
 function deleteSessionCookie(c: Context<AppBindings>): void {
   deleteCookie(c, cookieName, { path: "/" });
-}
-
-export async function firstUserRole(db: D1Database): Promise<AuthUser["role"]> {
-  const row = await db.prepare("SELECT COUNT(*) AS count FROM users").first<{ count: number }>();
-  return row && row.count > 0 ? "user" : "admin";
 }

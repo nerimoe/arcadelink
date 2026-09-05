@@ -14,7 +14,7 @@ describe("MuNET OAuth", () => {
   it("reads cards from the OAuth resource endpoint", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(Response.json({ access_token: "token" }))
-      .mockResolvedValueOnce(Response.json({ sub: "user" }))
+      .mockResolvedValueOnce(Response.json({ sub: "user", name: "Player", preferred_username: "player" }))
       .mockResolvedValueOnce(Response.json([
         { luid: "12345678901234567890", remark: "main" },
       ]));
@@ -27,6 +27,7 @@ describe("MuNET OAuth", () => {
     });
 
     expect(result.cards).toEqual([{ luid: "12345678901234567890", remark: "main" }]);
+    expect(result).toMatchObject({ subject: "user", name: "Player", username: "player" });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[2]?.[0]).toBe("https://auth.mumur.net:550/connect/cards");
   });

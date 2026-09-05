@@ -4,26 +4,25 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 import type { Context } from "hono";
 import { z } from "zod";
-import { attachUser, createSession, destroySession, firstUserRole, requireAdmin, requireMerchant, requireUser } from "./auth";
-import { hashPassword, verifyPassword, encryptSecret, decryptSecret, randomToken } from "./crypto";
+import { attachUser, createSession, destroySession, requireAdmin, requireMerchant, requireUser } from "./auth";
+import { encryptSecret, decryptSecret, randomToken } from "./crypto";
 import { canAccessShop, getMachineByPublicId, listShopsForUser } from "./db";
 import { checkLocation, clampShopRadius } from "./geo";
 import { allowedOrigins, assertAllowedOrigin, clientIp, jsonError } from "./http";
-import { assertNotBanned, enforceRateLimits, loginRateLimitRules, verifyTurnstile } from "./risk";
+import { assertNotBanned, enforceRateLimits, loginRateLimitRules } from "./risk";
 import { sendHinataCard } from "./hinata";
 import { finishMunetAuth, munetAuthorizeUrl } from "./munet";
+import { authenticationOptions, finishAuthentication, finishRegistration, registrationOptions } from "./passkeys";
 import type { AppBindings, AuthUser } from "./types";
 import {
   createCardSchema,
   createBanSchema,
   createMachineSchema,
   createShopSchema,
-  loginSchema,
   machineLoginSchema,
   patchMachineSchema,
   setUserRoleSchema,
   shopMemberSchema,
-  registerSchema,
 } from "./validators";
 
 const app = new Hono<AppBindings>();
@@ -60,43 +59,65 @@ app.get("/api/health", (c) => c.json({ ok: true }));
 
 app.get("/api/me", (c) => {
   const user = c.get("user");
-  return c.json({
-    user: user ? publicUser(user) : null,
-    turnstileSiteKey: c.env.TURNSTILE_SITE_KEY || null,
-  });
-});
-
-app.post("/api/auth/register", async (c) => {
-  const body = registerSchema.parse(await c.req.json());
-  await verifyTurnstile(c, body.turnstileToken);
-  const role = await firstUserRole(c.env.DB);
-  const id = crypto.randomUUID();
-  const passwordHash = await hashPassword(body.password);
-  try {
-    await c.env.DB.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)")
-      .bind(id, body.email, passwordHash, role)
-      .run();
-  } catch {
-    jsonError(409, "这个邮箱已经注册过了");
-  }
-  await createSession(c, id);
-  return c.json({ user: { id, email: body.email, role } }, 201);
-});
-
-app.post("/api/auth/login", async (c) => {
-  const body = loginSchema.parse(await c.req.json());
-  await verifyTurnstile(c, body.turnstileToken);
-  const user = await c.env.DB.prepare("SELECT id, email, password_hash, role, banned_at FROM users WHERE email = ?")
-    .bind(body.email)
-    .first<{ id: string; email: string; password_hash: string; role: AuthUser["role"]; banned_at: string | null }>();
-  if (!user || !(await verifyPassword(body.password, user.password_hash))) jsonError(401, "邮箱或密码不正确");
-  if (user.banned_at) jsonError(403, "这个账号暂时无法使用");
-  await createSession(c, user.id);
-  return c.json({ user: { id: user.id, email: user.email, role: user.role } });
+  return c.json({ user: user ? publicUser(user) : null });
 });
 
 app.post("/api/auth/logout", async (c) => {
   await destroySession(c);
+  return c.json({ ok: true });
+});
+
+app.get("/api/auth/passkey/options", async (c) => {
+  const minute = Math.floor(Date.now() / 60_000);
+  await enforceRateLimits(c, [
+    { key: `passkey:options:${clientIp(c.req.raw)}:${minute}`, limit: 10, windowSeconds: 90 },
+  ]);
+  return c.json(await authenticationOptions(c));
+});
+
+app.post("/api/auth/passkey", async (c) => {
+  const userId = await finishAuthentication(c, await c.req.json());
+  const user = await c.env.DB.prepare("SELECT banned_at FROM users WHERE id = ?")
+    .bind(userId)
+    .first<{ banned_at: string | null }>();
+  if (!user || user.banned_at) jsonError(403, "这个账号暂时无法使用");
+  await createSession(c, userId);
+  return c.json({ ok: true });
+});
+
+app.get("/api/auth/passkey/register/options", async (c) => {
+  const user = requireUser(c);
+  return c.json(await registrationOptions(c, user));
+});
+
+app.post("/api/auth/passkey/register", async (c) => {
+  const user = requireUser(c);
+  await finishRegistration(c, user, await c.req.json());
+  return c.json({ ok: true }, 201);
+});
+
+app.get("/api/account", async (c) => {
+  const user = requireUser(c);
+  const [identities, passkeys] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT id, provider, username, display_name AS displayName, created_at AS createdAt,
+              last_login_at AS lastLoginAt
+       FROM auth_identities WHERE user_id = ? ORDER BY created_at ASC`,
+    ).bind(user.id).all(),
+    c.env.DB.prepare(
+      `SELECT id, name, device_type AS deviceType, backed_up AS backedUp,
+              created_at AS createdAt, last_used_at AS lastUsedAt
+       FROM passkeys WHERE user_id = ? ORDER BY created_at DESC`,
+    ).bind(user.id).all(),
+  ]);
+  return c.json({ identities: identities.results, passkeys: passkeys.results });
+});
+
+app.delete("/api/account/passkeys/:id", async (c) => {
+  const user = requireUser(c);
+  await c.env.DB.prepare("DELETE FROM passkeys WHERE id = ? AND user_id = ?")
+    .bind(c.req.param("id"), user.id)
+    .run();
   return c.json({ ok: true });
 });
 
@@ -132,46 +153,58 @@ app.get("/callback", async (c) => {
       code,
       redirectUri: `${c.env.APP_ORIGIN}/callback`,
     });
-    const linked = await c.env.DB.prepare(
+    const identity = await c.env.DB.prepare(
       `SELECT users.id, users.banned_at AS bannedAt
-       FROM oauth_accounts JOIN users ON users.id = oauth_accounts.user_id
-       WHERE provider = 'munet' AND provider_user_id = ?`,
+       FROM auth_identities AS identities
+       JOIN users ON users.id = identities.user_id
+       WHERE identities.provider = 'munet' AND identities.provider_subject = ?`,
     )
       .bind(munet.subject)
       .first<{ id: string; bannedAt: string | null }>();
-    const current = c.get("user");
-    if (linked?.bannedAt || current?.bannedAt) return fail("这个账号暂时无法使用");
-    if (linked && current && linked.id !== current.id) return fail("这个 MuNET 账号已绑定其他账号");
+    if (identity?.bannedAt) return fail("这个账号暂时无法使用");
 
-    const userId = linked?.id || current?.id || crypto.randomUUID();
+    const userId = identity?.id ?? crypto.randomUUID();
+    const isNewUser = !identity;
     const statements: D1PreparedStatement[] = [];
-    if (!linked && !current) {
-      statements.push(
-        c.env.DB.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").bind(
-          userId,
-          `munet-${munet.subject}@oauth.invalid`,
-          await hashPassword(randomToken()),
-          await firstUserRole(c.env.DB),
-        ),
-      );
-    }
-    if (!linked) {
+    if (identity) {
       statements.push(
         c.env.DB.prepare(
-          "INSERT INTO oauth_accounts (id, user_id, provider, provider_user_id) VALUES (?, ?, 'munet', ?)",
-        ).bind(crypto.randomUUID(), userId, munet.subject),
+          `UPDATE auth_identities SET username = ?, display_name = ?, last_login_at = CURRENT_TIMESTAMP,
+                  updated_at = CURRENT_TIMESTAMP
+           WHERE provider = 'munet' AND provider_subject = ?`,
+        ).bind(munet.username, munet.name, munet.subject),
+      );
+    } else {
+      statements.push(
+        c.env.DB.prepare(
+          `INSERT INTO users (id, role)
+           SELECT ?, CASE WHEN EXISTS (SELECT 1 FROM users) THEN 'user' ELSE 'admin' END`,
+        ).bind(userId),
+        c.env.DB.prepare(
+          `INSERT INTO auth_identities
+             (id, user_id, provider, provider_subject, username, display_name, last_login_at)
+           VALUES (?, ?, 'munet', ?, ?, ?, CURRENT_TIMESTAMP)`,
+        ).bind(crypto.randomUUID(), userId, munet.subject, munet.username, munet.name),
       );
     }
+    statements.push(
+      c.env.DB.prepare(
+        "UPDATE cards SET disabled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND source = 'munet'",
+      ).bind(userId),
+    );
     for (const card of munet.cards) {
       statements.push(
         c.env.DB.prepare(
-          "INSERT OR IGNORE INTO cards (id, user_id, label, card_type, access_code, source) VALUES (?, ?, ?, 'aime', ?, 'munet')",
+          `INSERT INTO cards (id, user_id, label, card_type, access_code, source)
+           VALUES (?, ?, ?, 'aime', ?, 'munet')
+           ON CONFLICT(user_id, access_code) DO UPDATE SET
+             label = excluded.label, source = 'munet', disabled_at = NULL, updated_at = CURRENT_TIMESTAMP`,
         ).bind(crypto.randomUUID(), userId, card.remark?.trim() || "MuNET 卡片", card.luid),
       );
     }
     if (statements.length) await c.env.DB.batch(statements);
     await createSession(c, userId);
-    return c.redirect(next);
+    return c.redirect(isNewUser ? `/settings?setup=passkey&next=${encodeURIComponent(next)}` : next);
   } catch (error) {
     console.error(error);
     return fail(error instanceof z.ZodError ? "MuNET 返回的数据无法识别" : error instanceof Error ? error.message : "MuNET 登录失败");
@@ -181,8 +214,8 @@ app.get("/callback", async (c) => {
 app.post("/api/admin/users/role", async (c) => {
   requireAdmin(c);
   const body = setUserRoleSchema.parse(await c.req.json());
-  const result = await c.env.DB.prepare("UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?")
-    .bind(body.role, body.email)
+  const result = await c.env.DB.prepare("UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+    .bind(body.role, body.userId)
     .run();
   if (result.meta.changes === 0) jsonError(404, "没有找到这个用户");
   return c.json({ ok: true });
@@ -193,9 +226,20 @@ app.get("/api/admin/users", async (c) => {
   const query = c.req.query("query")?.trim().toLowerCase();
   const statement = query
     ? c.env.DB.prepare(
-        "SELECT id, email, role, banned_at AS bannedAt, created_at AS createdAt FROM users WHERE lower(email) LIKE ? ORDER BY created_at DESC LIMIT 50",
-      ).bind(`%${query}%`)
-    : c.env.DB.prepare("SELECT id, email, role, banned_at AS bannedAt, created_at AS createdAt FROM users ORDER BY created_at DESC LIMIT 50");
+        `SELECT users.id, identities.username, identities.display_name AS displayName, users.role,
+                users.banned_at AS bannedAt, users.created_at AS createdAt
+         FROM users JOIN auth_identities AS identities
+           ON identities.user_id = users.id AND identities.provider = 'munet'
+         WHERE lower(identities.username) LIKE ? OR lower(identities.display_name) LIKE ? OR users.id LIKE ?
+         ORDER BY users.created_at DESC LIMIT 50`,
+      ).bind(`%${query}%`, `%${query}%`, `%${query}%`)
+    : c.env.DB.prepare(
+        `SELECT users.id, identities.username, identities.display_name AS displayName, users.role,
+                users.banned_at AS bannedAt, users.created_at AS createdAt
+         FROM users JOIN auth_identities AS identities
+           ON identities.user_id = users.id AND identities.provider = 'munet'
+         ORDER BY users.created_at DESC LIMIT 50`,
+      );
   const users = await statement.all();
   return c.json({ users: users.results });
 });
@@ -340,9 +384,11 @@ app.get("/api/merchant/shop-members", async (c) => {
   if (!shopId) jsonError(400, "请选择店铺");
   if (!(await canAccessShop(c, user, shopId))) jsonError(403, "你没有这个店铺的管理权限");
   const members = await c.env.DB.prepare(
-    `SELECT shop_members.id, shop_members.role, shop_members.created_at AS createdAt, users.email, users.id AS userId
+    `SELECT shop_members.id, shop_members.role, shop_members.created_at AS createdAt,
+            identities.username, identities.display_name AS displayName, users.id AS userId
      FROM shop_members
      JOIN users ON users.id = shop_members.user_id
+     JOIN auth_identities AS identities ON identities.user_id = users.id AND identities.provider = 'munet'
      WHERE shop_members.shop_id = ?
      ORDER BY shop_members.created_at ASC`,
   )
@@ -355,8 +401,12 @@ app.post("/api/merchant/shop-members", async (c) => {
   const user = requireMerchant(c);
   const body = shopMemberSchema.parse(await c.req.json());
   if (!(await canAccessShop(c, user, body.shopId))) jsonError(403, "你没有这个店铺的管理权限");
-  const target = await c.env.DB.prepare("SELECT id, role FROM users WHERE email = ?")
-    .bind(body.email)
+  const target = await c.env.DB.prepare(
+    `SELECT users.id, users.role FROM users
+     JOIN auth_identities AS identities ON identities.user_id = users.id AND identities.provider = 'munet'
+     WHERE users.id = ? OR lower(identities.username) = lower(?)`,
+  )
+    .bind(body.user, body.user)
     .first<{ id: string; role: AuthUser["role"] }>();
   if (!target) jsonError(404, "没有找到这个用户");
   await c.env.DB.batch([
@@ -527,7 +577,7 @@ async function recordLoginEvent(
 }
 
 function publicUser(user: AuthUser) {
-  return { id: user.id, email: user.email, role: user.role };
+  return { id: user.id, username: user.username, displayName: user.displayName, role: user.role };
 }
 
 async function listLoginEvents(
@@ -569,13 +619,14 @@ async function listLoginEvents(
            machine_login_events.distance_meters AS distanceMeters,
            machines.name AS machineName,
            shops.name AS shopName,
-           users.email AS userEmail,
+           identities.display_name AS userName,
            cards.label AS cardLabel
     FROM machine_login_events
     LEFT JOIN machines ON machines.id = machine_login_events.machine_id
     LEFT JOIN shops ON shops.id = machines.shop_id
     LEFT JOIN shop_members ON shop_members.shop_id = shops.id
     LEFT JOIN users ON users.id = machine_login_events.user_id
+    LEFT JOIN auth_identities AS identities ON identities.user_id = users.id AND identities.provider = 'munet'
     LEFT JOIN cards ON cards.id = machine_login_events.card_id
     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
     GROUP BY machine_login_events.id

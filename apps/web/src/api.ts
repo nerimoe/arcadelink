@@ -1,6 +1,14 @@
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from "@simplewebauthn/browser";
+
 export type User = {
   id: string;
-  email: string;
+  username: string;
+  displayName: string;
   role: "user" | "merchant" | "admin";
 };
 
@@ -41,7 +49,8 @@ export type Machine = {
 
 export type UserSummary = {
   id: string;
-  email: string;
+  username: string;
+  displayName: string;
   role: User["role"];
   bannedAt?: string | null;
   createdAt: string;
@@ -50,7 +59,8 @@ export type UserSummary = {
 export type ShopMember = {
   id: string;
   userId: string;
-  email: string;
+  username: string;
+  displayName: string;
   role: "owner" | "staff";
   createdAt: string;
 };
@@ -65,7 +75,7 @@ export type LoginEvent = {
   distanceMeters?: number | null;
   machineName?: string | null;
   shopName?: string | null;
-  userEmail?: string | null;
+  userName?: string | null;
   cardLabel?: string | null;
 };
 
@@ -76,6 +86,24 @@ export type Ban = {
   reason: string;
   expiresAt?: string | null;
   createdAt: string;
+};
+
+export type AuthIdentity = {
+  id: string;
+  provider: string;
+  username?: string | null;
+  displayName?: string | null;
+  createdAt: string;
+  lastLoginAt?: string | null;
+};
+
+export type Passkey = {
+  id: string;
+  name: string;
+  deviceType: string;
+  backedUp: number;
+  createdAt: string;
+  lastUsedAt?: string | null;
 };
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -93,12 +121,17 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 }
 
 export const Api = {
-  me: () => api<{ user: User | null; turnstileSiteKey: string | null }>("/api/me"),
-  login: (email: string, password: string, turnstileToken?: string) =>
-    api<{ user: User }>("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password, turnstileToken }) }),
-  register: (email: string, password: string, turnstileToken?: string) =>
-    api<{ user: User }>("/api/auth/register", { method: "POST", body: JSON.stringify({ email, password, turnstileToken }) }),
+  me: () => api<{ user: User | null }>("/api/me"),
+  passkeyOptions: () => api<PublicKeyCredentialRequestOptionsJSON>("/api/auth/passkey/options"),
+  loginWithPasskey: (response: AuthenticationResponseJSON) =>
+    api<{ ok: true }>("/api/auth/passkey", { method: "POST", body: JSON.stringify(response) }),
+  passkeyRegistrationOptions: () =>
+    api<PublicKeyCredentialCreationOptionsJSON>("/api/auth/passkey/register/options"),
+  registerPasskey: (response: RegistrationResponseJSON) =>
+    api<{ ok: true }>("/api/auth/passkey/register", { method: "POST", body: JSON.stringify(response) }),
   logout: () => api<{ ok: true }>("/api/auth/logout", { method: "POST" }),
+  account: () => api<{ identities: AuthIdentity[]; passkeys: Passkey[] }>("/api/account"),
+  deletePasskey: (id: string) => api<{ ok: true }>(`/api/account/passkeys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   cards: () => api<{ cards: Card[] }>("/api/cards"),
   createCard: (label: string, accessCode: string) =>
     api<{ card: Card }>("/api/cards", { method: "POST", body: JSON.stringify({ label, accessCode }) }),
@@ -116,7 +149,7 @@ export const Api = {
     api<{ ok: true }>(`/api/merchant/machines/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   deleteMachine: (id: string) => api<{ ok: true }>(`/api/merchant/machines/${id}`, { method: "DELETE" }),
   shopMembers: (shopId: string) => api<{ members: ShopMember[] }>(`/api/merchant/shop-members?shopId=${encodeURIComponent(shopId)}`),
-  addShopMember: (input: { shopId: string; email: string; role: "owner" | "staff" }) =>
+  addShopMember: (input: { shopId: string; user: string; role: "owner" | "staff" }) =>
     api<{ ok: true }>("/api/merchant/shop-members", { method: "POST", body: JSON.stringify(input) }),
   removeShopMember: (id: string) => api<{ ok: true }>(`/api/merchant/shop-members/${id}`, { method: "DELETE" }),
   loginEvents: (input: { shopId?: string; machineId?: string; limit?: number }) => {
@@ -127,8 +160,8 @@ export const Api = {
     return api<{ events: LoginEvent[] }>(`/api/merchant/login-events?${params.toString()}`);
   },
   adminUsers: (query?: string) => api<{ users: UserSummary[] }>(`/api/admin/users${query ? `?query=${encodeURIComponent(query)}` : ""}`),
-  setUserRole: (email: string, role: User["role"]) =>
-    api<{ ok: true }>("/api/admin/users/role", { method: "POST", body: JSON.stringify({ email, role }) }),
+  setUserRole: (userId: string, role: User["role"]) =>
+    api<{ ok: true }>("/api/admin/users/role", { method: "POST", body: JSON.stringify({ userId, role }) }),
   bans: () => api<{ bans: Ban[] }>("/api/admin/bans"),
   createBan: (input: { subjectType: Ban["subjectType"]; subjectValue: string; reason: string; expiresAt?: string }) =>
     api<{ ok: true }>("/api/admin/bans", { method: "POST", body: JSON.stringify(input) }),

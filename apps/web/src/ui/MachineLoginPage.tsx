@@ -70,9 +70,6 @@ export function MachineLoginPage() {
             <Link className="focus-ring rounded bg-ink px-5 py-4 text-center font-semibold text-white" to={`/login?next=${encodeURIComponent(`/m/${publicId}`)}`}>
               登录后选择卡片
             </Link>
-            <Link className="focus-ring rounded border border-ink/20 px-5 py-4 text-center font-semibold hover:bg-white" to={`/register?next=${encodeURIComponent(`/m/${publicId}`)}`}>
-              创建账号
-            </Link>
           </div>
         ) : (
           <div className="mt-8 grid gap-4">

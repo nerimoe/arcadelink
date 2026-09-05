@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { CreditCard, Download, Plus, Trash2 } from "lucide-react";
+import { CreditCard, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Api, type Card } from "../api";
 import { useAuth } from "./AuthContext";
 import { RequireLogin } from "./RequireLogin";
@@ -67,8 +67,8 @@ export function CardsPage() {
               className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded border border-black/15 bg-white px-4 font-medium"
               href="/api/auth/munet?next=/cards"
             >
-              <Download size={18} />
-              从 MuNET 导入
+              <RefreshCw size={18} />
+              与 MuNET 同步
             </a>
           </div>
         </form>

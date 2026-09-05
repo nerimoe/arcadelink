@@ -46,20 +46,3 @@ export async function assertNotBanned(c: Context<AppBindings>, subjects: Array<[
     if (ban) jsonError(403, "暂时无法完成此操作");
   }
 }
-
-export async function verifyTurnstile(c: Context<AppBindings>, token: string | undefined): Promise<void> {
-  const secret = c.env.TURNSTILE_SECRET_KEY;
-  if (!secret || secret.startsWith("1x000000")) return;
-  if (!token) jsonError(400, "请完成人机验证");
-
-  const form = new FormData();
-  form.set("secret", secret);
-  form.set("response", token);
-  form.set("remoteip", clientIp(c.req.raw));
-  const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    body: form,
-  });
-  const result = await response.json<{ success: boolean }>();
-  if (!result.success) jsonError(400, "验证失败，请重试");
-}

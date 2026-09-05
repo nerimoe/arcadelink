@@ -49,7 +49,7 @@ export function AdminPage() {
               void loadUsers();
             }}
           >
-            <input className="focus-ring min-h-11 flex-1 rounded border border-black/10 bg-white px-3" placeholder="搜索邮箱" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <input className="focus-ring min-h-11 flex-1 rounded border border-black/10 bg-white px-3" placeholder="搜索 MuNET 用户" value={query} onChange={(event) => setQuery(event.target.value)} />
             <button className="focus-ring rounded bg-ink px-4 font-medium text-white">搜索</button>
           </form>
           <div className="grid gap-3">
@@ -101,8 +101,8 @@ function UserRow({ user, onChanged }: { user: UserSummary; onChanged: () => void
   return (
     <article className="flex flex-wrap items-center justify-between gap-3 rounded border border-black/10 bg-white p-4">
       <div className="min-w-0">
-        <p className="font-semibold">{user.email}</p>
-        <p className="mt-1 text-sm text-ink/60">当前身份：{roleLabels[user.role]}</p>
+        <p className="font-semibold">{user.displayName}</p>
+        <p className="mt-1 text-sm text-ink/60">@{user.username} · 当前身份：{roleLabels[user.role]}</p>
       </div>
       <div className="flex items-center gap-2">
         <select className="focus-ring min-h-10 rounded border border-black/10 bg-panel px-3" value={role} onChange={(event) => setRole(event.target.value as User["role"])}>
@@ -116,7 +116,7 @@ function UserRow({ user, onChanged }: { user: UserSummary; onChanged: () => void
           onClick={async () => {
             setBusy(true);
             try {
-              await Api.setUserRole(user.email, role);
+              await Api.setUserRole(user.id, role);
               await onChanged();
             } finally {
               setBusy(false);
