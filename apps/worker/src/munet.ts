@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 const authOrigin = "https://auth.mumur.net:550";
-const cardApis = ["https://apidashboard3-cf.mumur.net", "https://apidashboard3.mumur.net:42081"];
 
 const tokenSchema = z.object({ access_token: z.string().min(1) });
 const cardSchema = z.object({
@@ -11,7 +10,7 @@ const cardSchema = z.object({
 const profileSchema = z.object({
   sub: z.string().min(1),
 });
-const homeSchema = z.object({ cards: cardSchema.array() });
+const cardsSchema = cardSchema.array();
 
 export type MunetCard = z.infer<typeof cardSchema>;
 
@@ -51,42 +50,12 @@ export async function finishMunetAuth(input: {
     headers: { authorization: `Bearer ${accessToken}` },
   });
   if (!profileResponse.ok) throw new Error("无法读取 MuNET 账号");
-  const profileJson = await profileResponse.json();
-  const profile = profileSchema.parse(profileJson);
+  const profile = profileSchema.parse(await profileResponse.json());
 
-  const statuses: string[] = [];
-  for (const origin of cardApis) {
-    try {
-      const response = await fetch(`${origin}/api/v3/UserHome?locale=zh-Hans`, {
-        headers: { accept: "application/json", authorization: `Bearer ${accessToken}` },
-      });
-      if (response.ok) return { subject: profile.sub, cards: homeSchema.parse(await response.json()).cards };
-      statuses.push(`${origin}:${response.status}`);
-    } catch {
-      statuses.push(`${origin}:network_error`);
-    }
-  }
-  console.error("MuNET card API failed", {
-    statuses,
-    profile: objectMetadata(profileJson),
-    token: tokenMetadata(accessToken),
+  const cardsResponse = await fetch(`${authOrigin}/connect/cards`, {
+    headers: { accept: "application/json", authorization: `Bearer ${accessToken}` },
   });
-  throw new Error("无法读取 MuNET 卡片");
-}
+  if (!cardsResponse.ok) throw new Error("无法读取 MuNET 卡片");
 
-function tokenMetadata(token: string): unknown {
-  try {
-    const encoded = token.split(".")[1]!.replaceAll("-", "+").replaceAll("_", "/");
-    const payload = JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")));
-    return objectMetadata(payload);
-  } catch {
-    return "opaque";
-  }
-}
-
-function objectMetadata(value: unknown): unknown {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return typeof value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [key, Array.isArray(item) ? `array(${item.length})` : typeof item]),
-  );
+  return { subject: profile.sub, cards: cardsSchema.parse(await cardsResponse.json()) };
 }
