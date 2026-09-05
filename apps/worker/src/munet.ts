@@ -53,15 +53,28 @@ export async function finishMunetAuth(input: {
   if (!profileResponse.ok) throw new Error("无法读取 MuNET 账号");
   const profile = profileSchema.parse(await profileResponse.json());
 
+  const statuses: string[] = [];
   for (const origin of cardApis) {
     try {
       const response = await fetch(`${origin}/api/v3/UserHome?locale=zh-Hans`, {
         headers: { accept: "application/json", authorization: `Bearer ${accessToken}` },
       });
       if (response.ok) return { subject: profile.sub, cards: homeSchema.parse(await response.json()).cards };
+      statuses.push(`${origin}:${response.status}`);
     } catch {
-      continue;
+      statuses.push(`${origin}:network_error`);
     }
   }
+  console.error("MuNET card API failed", { statuses, token: tokenMetadata(accessToken) });
   throw new Error("无法读取 MuNET 卡片");
+}
+
+function tokenMetadata(token: string): unknown {
+  try {
+    const encoded = token.split(".")[1]!.replaceAll("-", "+").replaceAll("_", "/");
+    const payload = JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")));
+    return { aud: payload.aud, scope: payload.scope };
+  } catch {
+    return "opaque";
+  }
 }
