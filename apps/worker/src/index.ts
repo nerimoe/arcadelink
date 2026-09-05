@@ -174,7 +174,7 @@ app.get("/callback", async (c) => {
     return c.redirect(next);
   } catch (error) {
     console.error(error);
-    return fail(error instanceof Error ? error.message : "MuNET 登录失败");
+    return fail(error instanceof z.ZodError ? "MuNET 返回的数据无法识别" : error instanceof Error ? error.message : "MuNET 登录失败");
   }
 });
 

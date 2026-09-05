@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const authOrigin = "https://auth.mumur.net:550";
+const cardApis = ["https://apidashboard3-cf.mumur.net", "https://apidashboard3.mumur.net:42081"];
 
 const tokenSchema = z.object({ access_token: z.string().min(1) });
 const cardSchema = z.object({
@@ -9,8 +10,8 @@ const cardSchema = z.object({
 });
 const profileSchema = z.object({
   sub: z.string().min(1),
-  cards: cardSchema.array(),
 });
+const homeSchema = z.object({ cards: cardSchema.array() });
 
 export type MunetCard = z.infer<typeof cardSchema>;
 
@@ -51,5 +52,16 @@ export async function finishMunetAuth(input: {
   });
   if (!profileResponse.ok) throw new Error("无法读取 MuNET 账号");
   const profile = profileSchema.parse(await profileResponse.json());
-  return { subject: profile.sub, cards: profile.cards };
+
+  for (const origin of cardApis) {
+    try {
+      const response = await fetch(`${origin}/api/v3/UserHome?locale=zh-Hans`, {
+        headers: { accept: "application/json", authorization: `Bearer ${accessToken}` },
+      });
+      if (response.ok) return { subject: profile.sub, cards: homeSchema.parse(await response.json()).cards };
+    } catch {
+      continue;
+    }
+  }
+  throw new Error("无法读取 MuNET 卡片");
 }

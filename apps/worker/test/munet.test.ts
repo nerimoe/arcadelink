@@ -11,11 +11,11 @@ describe("MuNET OAuth", () => {
     expect(url.searchParams.get("state")).toBe("state");
   });
 
-  it("reads cards from userinfo", async () => {
+  it("reads cards from UserHome", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(Response.json({ access_token: "token" }))
+      .mockResolvedValueOnce(Response.json({ sub: "user" }))
       .mockResolvedValueOnce(Response.json({
-        sub: "user",
         cards: [{ luid: "12345678901234567890", remark: "main" }],
       }));
 
@@ -27,6 +27,7 @@ describe("MuNET OAuth", () => {
     });
 
     expect(result.cards).toEqual([{ luid: "12345678901234567890", remark: "main" }]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[2]?.[0]).toContain("/api/v3/UserHome");
   });
 });
