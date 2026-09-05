@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const accessCodeSchema = z.string().regex(/^\d{20}$/, "请输入完整的卡片号码");
+export const accessCodeSchema = z.string().regex(/^[0-24-9]\d{19}$/, "卡片号码必须为20位数字且不能以3开头");
 
 export const createCardSchema = z.object({
   label: z.string().trim().min(1).max(40),

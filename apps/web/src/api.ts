@@ -142,6 +142,10 @@ export const Api = {
       body: JSON.stringify({ name }),
     }),
   cards: () => api<{ cards: Card[]; authorizationRequired: boolean; syncError: string | null }>("/api/cards"),
+  syncCards: () =>
+    api<{ cards: Card[]; authorizationRequired: boolean; syncError: string | null }>("/api/cards/sync", {
+      method: "POST",
+    }),
   createCard: (label: string, accessCode: string) =>
     api<{ card: Card }>("/api/cards", { method: "POST", body: JSON.stringify({ label, accessCode }) }),
   deleteCard: (id: string) => api<{ ok: true }>(`/api/cards/${id}`, { method: "DELETE" }),

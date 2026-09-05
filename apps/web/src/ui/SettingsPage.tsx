@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Fingerprint, KeyRound, Plus, Save, Trash2 } from "lucide-react";
+import { Fingerprint, KeyRound, Plus, Trash2 } from "lucide-react";
 import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Api, type AuthIdentity, type Passkey } from "../api";
@@ -11,8 +11,6 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const [identities, setIdentities] = useState<AuthIdentity[]>([]);
   const [passkeys, setPasskeys] = useState<Passkey[]>([]);
-  const [passkeyNames, setPasskeyNames] = useState<Record<string, string>>({});
-  const [newPasskeyName, setNewPasskeyName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const attemptedSetup = useRef(false);
@@ -23,7 +21,6 @@ export function SettingsPage() {
     const account = await Api.account();
     setIdentities(account.identities);
     setPasskeys(account.passkeys);
-    setPasskeyNames(Object.fromEntries(account.passkeys.map((passkey) => [passkey.id, passkey.name])));
   }, []);
 
   const addPasskey = useCallback(async () => {
@@ -31,8 +28,7 @@ export function SettingsPage() {
     setError(null);
     try {
       const response = await startRegistration({ optionsJSON: await Api.passkeyRegistrationOptions() });
-      await Api.registerPasskey(response, newPasskeyName.trim() || undefined);
-      setNewPasskeyName("");
+      await Api.registerPasskey(response);
       await load();
       if (setup) navigate(next, { replace: true });
     } catch (caught) {
@@ -40,7 +36,7 @@ export function SettingsPage() {
     } finally {
       setBusy(false);
     }
-  }, [load, navigate, newPasskeyName, next, setup]);
+  }, [load, navigate, next, setup]);
 
   useEffect(() => {
     void load().catch((caught) => setError(caught instanceof Error ? caught.message : "无法加载账号设置"));
@@ -75,15 +71,12 @@ export function SettingsPage() {
         <section className="rounded border border-black/10 bg-panel p-5">
           <h2 className="flex items-center gap-2 font-semibold"><Fingerprint size={18} />Passkey</h2>
           {browserSupportsWebAuthn() && (
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              <input
-                className="focus-ring min-h-10 min-w-0 flex-1 rounded border border-black/10 bg-white px-3 text-sm"
-                placeholder="名称（可选，默认自动识别）"
-                maxLength={60}
-                value={newPasskeyName}
-                onChange={(event) => setNewPasskeyName(event.target.value)}
-              />
-              <button className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded bg-ink px-3 text-sm font-medium text-white disabled:opacity-60" disabled={busy} onClick={addPasskey}>
+            <div className="mt-4">
+              <button
+                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded bg-ink px-4 text-sm font-medium text-white disabled:opacity-60"
+                disabled={busy}
+                onClick={addPasskey}
+              >
                 <Plus size={16} />
                 添加 Passkey
               </button>
@@ -93,42 +86,22 @@ export function SettingsPage() {
             {passkeys.map((passkey) => (
               <div key={passkey.id} className="flex items-center justify-between gap-3 rounded border border-black/10 bg-white p-3">
                 <div className="min-w-0 flex-1">
-                  <input
-                    aria-label="Passkey 名称"
-                    className="focus-ring min-h-9 w-full rounded border border-black/10 bg-panel px-2 font-medium"
-                    maxLength={60}
-                    value={passkeyNames[passkey.id] ?? passkey.name}
-                    onChange={(event) => setPasskeyNames((current) => ({ ...current, [passkey.id]: event.target.value }))}
-                  />
+                  <p className="font-semibold">{passkey.name}</p>
                   <p className="mt-1 text-sm text-ink/60">
-                    {passkey.providerName || "未知提供方"} · {passkey.backedUp ? "已同步" : "此设备"}
+                    {passkey.providerName && passkey.providerName !== passkey.name ? `${passkey.providerName} · ` : ""}
+                    {passkey.backedUp ? "已同步" : "此设备"}
                   </p>
                 </div>
-                <div className="flex shrink-0 gap-1">
-                  <button
-                    className="focus-ring grid size-9 place-items-center rounded text-mint hover:bg-mint/10 disabled:opacity-40"
-                    title="保存名称"
-                    disabled={!passkeyNames[passkey.id]?.trim() || passkeyNames[passkey.id]?.trim() === passkey.name}
-                    onClick={async () => {
-                      const name = passkeyNames[passkey.id]?.trim();
-                      if (!name) return;
-                      await Api.renamePasskey(passkey.id, name);
-                      await load();
-                    }}
-                  >
-                    <Save size={16} />
-                  </button>
-                  <button
-                    className="focus-ring grid size-9 place-items-center rounded text-coral hover:bg-coral/10"
-                    title="删除 Passkey"
-                    onClick={async () => {
-                      await Api.deletePasskey(passkey.id);
-                      await load();
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+                <button
+                  className="focus-ring grid size-9 shrink-0 place-items-center rounded text-coral hover:bg-coral/10"
+                  title="删除 Passkey"
+                  onClick={async () => {
+                    await Api.deletePasskey(passkey.id);
+                    await load();
+                  }}
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             ))}
             {!browserSupportsWebAuthn() && <p className="text-sm text-ink/60">当前设备不支持 Passkey。</p>}

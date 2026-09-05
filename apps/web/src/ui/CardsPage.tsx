@@ -13,6 +13,11 @@ export function CardsPage() {
   const [authorizationRequired, setAuthorizationRequired] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const startsWithThree = accessCode.startsWith("3");
+  const canCreate = label.trim().length > 0 && /^[0-24-9]\d{19}$/.test(accessCode);
 
   const load = async () => {
     if (!user) return;
@@ -28,7 +33,9 @@ export function CardsPage() {
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
+    if (!canCreate) return;
     setError(null);
+    setCreating(true);
     try {
       await Api.createCard(label, accessCode);
       setLabel("");
@@ -36,6 +43,20 @@ export function CardsPage() {
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "添加失败");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const remove = async (cardId: string) => {
+    setDeletingId(cardId);
+    try {
+      await Api.deleteCard(cardId);
+      setCards((current) => current.filter((card) => card.id !== cardId));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "删除失败");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -59,12 +80,17 @@ export function CardsPage() {
                 value={accessCode}
                 onChange={(event) => setAccessCode(event.target.value.replace(/\D/g, "").slice(0, 20))}
                 inputMode="numeric"
-                pattern="\d{20}"
+                placeholder="20位数字，不能以3开头"
+                maxLength={20}
                 required
               />
+              {startsWithThree && <p className="text-xs text-coral">卡号不能以 3 开头</p>}
             </label>
             {error && <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
-            <button className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-white">
+            <button
+              className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!canCreate || creating}
+            >
               <Plus size={18} />
               添加卡片
             </button>
@@ -84,8 +110,14 @@ export function CardsPage() {
                 type="button"
                 onClick={async () => {
                   setSyncing(true);
+                  setError(null);
                   try {
-                    await load();
+                    const result = await Api.syncCards();
+                    setCards(result.cards);
+                    setAuthorizationRequired(result.authorizationRequired);
+                    setSyncError(result.syncError);
+                  } catch (caught) {
+                    setError(caught instanceof Error ? caught.message : "无法同步 MuNET 卡片");
                   } finally {
                     setSyncing(false);
                   }
@@ -104,16 +136,19 @@ export function CardsPage() {
             cards.map((card) => (
               <div key={card.id} className="flex items-center justify-between gap-4 rounded border border-black/10 bg-white p-4">
                 <div className="min-w-0">
-                  <p className="font-semibold">{card.label}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold">{card.label}</p>
+                    <span className="rounded bg-black/5 px-2 py-0.5 text-xs text-ink/60">
+                      {card.source === "munet" ? "来自 MuNET 账号同步" : "手动添加"}
+                    </span>
+                  </div>
                   <p className="mt-1 break-all font-mono text-sm text-ink/60">{card.accessCode}</p>
                 </div>
                 <button
                   title="删除卡片"
-                  className="focus-ring grid size-10 shrink-0 place-items-center rounded text-coral hover:bg-coral/10"
-                  onClick={async () => {
-                    await Api.deleteCard(card.id);
-                    await load();
-                  }}
+                  disabled={deletingId === card.id}
+                  className="focus-ring grid size-10 shrink-0 place-items-center rounded text-coral hover:bg-coral/10 disabled:opacity-40"
+                  onClick={() => void remove(card.id)}
                 >
                   <Trash2 size={18} />
                 </button>

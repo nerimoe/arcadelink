@@ -206,7 +206,7 @@ app.get("/callback", async (c) => {
     }
     statements.push(
       await munetCredentialStatement(c, identityId, munet.tokens),
-      ...munetCardStatements(c.env.DB, userId, munet.cards),
+      ...(isNewUser ? munetCardStatements(c.env.DB, userId, munet.cards) : []),
     );
     if (statements.length) await c.env.DB.batch(statements);
     await createSession(c, userId);
@@ -251,6 +251,16 @@ app.get("/api/admin/users", async (c) => {
 });
 
 app.get("/api/cards", async (c) => {
+  const user = requireUser(c);
+  const cards = await c.env.DB.prepare(
+    "SELECT id, label, card_type AS cardType, access_code AS accessCode, source, disabled_at AS disabledAt, created_at AS createdAt FROM cards WHERE user_id = ? ORDER BY created_at DESC",
+  )
+    .bind(user.id)
+    .all();
+  return c.json({ cards: cards.results, authorizationRequired: false, syncError: null });
+});
+
+app.post("/api/cards/sync", async (c) => {
   const user = requireUser(c);
   let authorizationRequired = false;
   let syncError: string | null = null;
