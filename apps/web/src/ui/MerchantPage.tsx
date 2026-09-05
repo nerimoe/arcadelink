@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Activity, Link2, Plus, Save, Store, Terminal, Trash2, Users } from "lucide-react";
+import { Activity, Link2, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
 import { Api, type LoginEvent, type Machine, type Shop, type ShopMember } from "../api";
 import { useAuth } from "./AuthContext";
 import { MapPicker } from "./MapPicker";
@@ -14,6 +14,8 @@ export function MerchantPage() {
   const [members, setMembers] = useState<ShopMember[]>([]);
   const [events, setEvents] = useState<LoginEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showShopForm, setShowShopForm] = useState(false);
+  const [deletingShop, setDeletingShop] = useState(false);
 
   const loadShops = useCallback(async () => {
     const result = await Api.shops();
@@ -40,28 +42,54 @@ export function MerchantPage() {
   useEffect(() => {
     if (!selectedShopId) {
       setMachines([]);
+      setMembers([]);
+      setEvents([]);
       return;
     }
     loadShopDetails(selectedShopId).catch((caught) => setError(caught instanceof Error ? caught.message : "无法加载店铺信息"));
   }, [loadShopDetails, selectedShopId]);
 
   const selectedShop = shops.find((shop) => shop.id === selectedShopId);
+  const isOwnerOrAdmin = user?.role === "admin" || members.some((m) => m.userId === user?.id && m.role === "owner");
+
+  const deleteSelectedShop = async () => {
+    if (!selectedShop || deletingShop) return;
+    if (!confirm(`确定要删除店铺「${selectedShop.name}」吗？\n此操作将同时删除该店铺下的所有机台与成员关联，且不可恢复。`)) return;
+    setDeletingShop(true);
+    setError(null);
+    try {
+      await Api.deleteShop(selectedShop.id);
+      const remaining = shops.filter((s) => s.id !== selectedShop.id);
+      setShops(remaining);
+      setSelectedShopId(remaining[0]?.id || "");
+      void refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "删除店铺失败");
+    } finally {
+      setDeletingShop(false);
+    }
+  };
 
   return (
     <RequireLogin>
       <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <div className="grid content-start gap-4">
-          <ShopForm
-            onCreated={async (shop) => {
-              await loadShops();
-              setSelectedShopId(shop.id);
-              void refresh();
-            }}
-          />
-          {error && <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
           {shops.length > 0 && (
-            <div className="rounded border border-black/10 bg-panel p-4">
-              <h2 className="mb-3 font-semibold">店铺</h2>
+            <div className="rounded border border-black/10 bg-panel p-4 shadow-soft">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <Store size={18} />
+                  店铺
+                </h2>
+                <button
+                  type="button"
+                  className="focus-ring flex items-center gap-1 rounded border border-black/15 bg-white px-2.5 py-1 text-xs font-medium hover:bg-black/5"
+                  onClick={() => setShowShopForm((prev) => !prev)}
+                >
+                  {showShopForm ? <X size={14} /> : <Plus size={14} />}
+                  {showShopForm ? "收起开店" : "新建店铺"}
+                </button>
+              </div>
               <select className="focus-ring min-h-11 w-full rounded border border-black/10 bg-white px-3" value={selectedShopId} onChange={(event) => setSelectedShopId(event.target.value)}>
                 {shops.map((shop) => (
                   <option key={shop.id} value={shop.id}>
@@ -71,6 +99,22 @@ export function MerchantPage() {
               </select>
             </div>
           )}
+
+          {(showShopForm || shops.length === 0) && (
+            <ShopForm
+              isCollapsible={shops.length > 0}
+              onCancel={() => setShowShopForm(false)}
+              onCreated={async (shop) => {
+                await loadShops();
+                setSelectedShopId(shop.id);
+                setShowShopForm(false);
+                void refresh();
+              }}
+            />
+          )}
+
+          {error && <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
+
           {selectedShop && (
             <>
               <MachineForm shopId={selectedShop.id} onCreated={() => loadShopDetails(selectedShop.id)} />
@@ -80,12 +124,28 @@ export function MerchantPage() {
         </div>
 
         <div className="grid content-start gap-4">
-          <h1 className="text-2xl font-semibold">{selectedShop?.name || "店家管理"}</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold">{selectedShop?.name || "店家管理"}</h1>
+            {selectedShop && isOwnerOrAdmin && (
+              <button
+                type="button"
+                disabled={deletingShop}
+                className="focus-ring flex items-center gap-1.5 rounded border border-coral/30 px-3 py-1.5 text-xs font-medium text-coral hover:bg-coral/10 disabled:opacity-50"
+                onClick={deleteSelectedShop}
+                title="删除店铺"
+              >
+                <Trash2 size={14} />
+                删除店铺
+              </button>
+            )}
+          </div>
           {!selectedShop ? (
             <div className="rounded border border-dashed border-black/20 bg-white p-8 text-center text-ink/60">
               <Store size={32} className="mx-auto mb-2 text-ink/40" />
               <p className="font-medium text-ink">还没有店铺</p>
-              <p className="mt-1 text-sm">请在左侧填写店铺信息并创建你的第一家店铺</p>
+              <p className="mt-1 text-sm">
+                {shops.length === 0 ? "请在左侧填写店铺信息并创建你的第一家店铺" : "请在左侧选择要管理的店铺"}
+              </p>
             </div>
           ) : (
             <>
@@ -103,7 +163,15 @@ export function MerchantPage() {
   );
 }
 
-function ShopForm({ onCreated }: { onCreated: (shop: Shop) => void | Promise<void> }) {
+function ShopForm({
+  onCreated,
+  isCollapsible,
+  onCancel,
+}: {
+  onCreated: (shop: Shop) => void | Promise<void>;
+  isCollapsible?: boolean;
+  onCancel?: () => void;
+}) {
   const [name, setName] = useState("");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
@@ -132,10 +200,22 @@ function ShopForm({ onCreated }: { onCreated: (shop: Shop) => void | Promise<voi
 
   return (
     <form onSubmit={submit} className="rounded border border-black/10 bg-panel p-5 shadow-soft">
-      <h2 className="flex items-center gap-2 text-xl font-semibold">
-        <Store size={21} />
-        添加店铺
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-xl font-semibold">
+          <Store size={21} />
+          {isCollapsible ? "新建店铺" : "添加店铺"}
+        </h2>
+        {isCollapsible && onCancel && (
+          <button
+            type="button"
+            className="focus-ring rounded p-1 text-ink/60 hover:bg-black/5"
+            onClick={onCancel}
+            title="收起"
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
       <div className="mt-4 grid gap-3">
         <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="店铺名称" value={name} onChange={(event) => setName(event.target.value)} required />
         <MapPicker latitude={latitude} longitude={longitude} onChange={(lat, lng) => {
@@ -147,10 +227,21 @@ function ShopForm({ onCreated }: { onCreated: (shop: Shop) => void | Promise<voi
           <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="地图位置" value={longitude ?? ""} onChange={(event) => setLongitude(parseCoordinate(event.target.value))} required />
         </div>
         <input className="focus-ring min-h-11 rounded border border-black/10 bg-white px-3" placeholder="允许距离，例如 80" value={radiusMeters} onChange={(event) => setRadiusMeters(event.target.value)} inputMode="numeric" />
-        <button className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-white disabled:opacity-60" disabled={busy}>
-          <Plus size={18} />
-          保存店铺
-        </button>
+        <div className="flex gap-2">
+          <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-white disabled:opacity-60" disabled={busy}>
+            <Plus size={18} />
+            保存店铺
+          </button>
+          {isCollapsible && onCancel && (
+            <button
+              type="button"
+              className="focus-ring rounded border border-black/15 bg-white px-4 font-medium hover:bg-black/5"
+              onClick={onCancel}
+            >
+              取消
+            </button>
+          )}
+        </div>
       </div>
     </form>
   );

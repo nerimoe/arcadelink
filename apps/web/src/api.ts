@@ -156,6 +156,7 @@ export const Api = {
   shops: () => api<{ shops: Shop[] }>("/api/merchant/shops"),
   createShop: (input: { name: string; latitude: number; longitude: number; radiusMeters: number }) =>
     api<{ shop: Shop }>("/api/merchant/shops", { method: "POST", body: JSON.stringify(input) }),
+  deleteShop: (id: string) => api<{ ok: true }>(`/api/merchant/shops/${id}`, { method: "DELETE" }),
   machines: (shopId: string) => api<{ machines: Machine[] }>(`/api/merchant/machines?shopId=${encodeURIComponent(shopId)}`),
   createMachine: (input: { shopId: string; name: string; hinataUrl: string; enabled: boolean }) =>
     api<{ machine: Machine }>("/api/merchant/machines", { method: "POST", body: JSON.stringify(input) }),

@@ -1,17 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CheckCircle2, Gamepad2, LocateFixed, ShieldAlert } from "lucide-react";
+import { CheckCircle2, CreditCard, Fingerprint, Gamepad2, Loader2, LocateFixed, ShieldAlert } from "lucide-react";
+import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
 import { Api, type Card, type PublicMachine } from "../api";
+import { passkeyErrorMessage } from "../passkeys";
 import { useAuth } from "./AuthContext";
 
 export function MachineLoginPage() {
   const { publicId = "" } = useParams();
-  const { user, loading } = useAuth();
+  const { user, loading, refresh } = useAuth();
   const [machine, setMachine] = useState<PublicMachine | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
-  const [selectedCard, setSelectedCard] = useState("");
   const [status, setStatus] = useState<"idle" | "locating" | "sending" | "sent">("idle");
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   useEffect(() => {
     Api.publicMachine(publicId)
@@ -24,21 +28,35 @@ export function MachineLoginPage() {
     Api.cards().then((result) => {
       const activeCards = result.cards.filter((card) => !card.disabledAt);
       setCards(activeCards);
-      setSelectedCard(activeCards[0]?.id ?? "");
     });
   }, [user]);
 
   const title = machine ? `${machine.shop.name} / ${machine.name}` : "ArcadeLink";
 
-  const login = async () => {
-    if (!selectedCard) return;
+  const loginWithPasskey = async () => {
+    setPasskeyBusy(true);
+    setPasskeyError(null);
+    try {
+      const response = await startAuthentication({ optionsJSON: await Api.passkeyOptions() });
+      await Api.loginWithPasskey(response);
+      await refresh();
+    } catch (caught) {
+      setPasskeyError(passkeyErrorMessage(caught));
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
+  const loginWithCard = async (cardId: string) => {
+    if (status !== "idle") return;
     setError(null);
+    setActiveCardId(cardId);
     setStatus("locating");
     try {
       const position = await getPosition();
       setStatus("sending");
       await Api.loginMachine(publicId, {
-        cardId: selectedCard,
+        cardId,
         lat: position.coords.latitude,
         lng: position.coords.longitude,
         accuracy: position.coords.accuracy,
@@ -46,6 +64,7 @@ export function MachineLoginPage() {
       setStatus("sent");
     } catch (caught) {
       setStatus("idle");
+      setActiveCardId(null);
       setError(caught instanceof Error ? caught.message : "登录失败，请稍后再试");
     }
   };
@@ -67,47 +86,119 @@ export function MachineLoginPage() {
 
         {!user ? (
           <div className="mt-8 grid gap-3">
-            <Link className="focus-ring rounded bg-ink px-5 py-4 text-center font-semibold text-white" to={`/login?next=${encodeURIComponent(`/m/${publicId}`)}`}>
-              登录后选择卡片
-            </Link>
+            <p className="text-sm font-medium text-ink/70">请登录后直接刷卡：</p>
+            {passkeyError && (
+              <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
+                {passkeyError}
+              </p>
+            )}
+            <a
+              className="focus-ring flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-white"
+              href={`/api/auth/munet?next=${encodeURIComponent(`/m/${publicId}`)}`}
+            >
+              <Gamepad2 size={18} />
+              使用 MuNET 继续
+            </a>
+            {browserSupportsWebAuthn() && (
+              <button
+                className="focus-ring flex min-h-12 w-full items-center justify-center gap-2 rounded border border-black/15 bg-white px-4 font-semibold disabled:opacity-60"
+                disabled={passkeyBusy}
+                onClick={loginWithPasskey}
+              >
+                <Fingerprint size={18} />
+                {passkeyBusy ? "正在验证 Passkey..." : "使用 Passkey 登录"}
+              </button>
+            )}
           </div>
         ) : (
           <div className="mt-8 grid gap-4">
-            <label className="grid gap-2 text-sm font-medium">
-              选择卡片
-              <select className="focus-ring min-h-12 rounded border border-black/10 bg-white px-3" value={selectedCard} onChange={(event) => setSelectedCard(event.target.value)}>
-                {cards.map((card) => (
-                  <option key={card.id} value={card.id}>
-                    {card.label} · {card.accessCode.slice(-4)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {cards.length === 0 && (
-              <Link className="rounded border border-dashed border-black/20 bg-white p-4 text-center text-mint" to="/cards">
-                先添加一张卡片
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-ink/70">点击卡片直接登录：</p>
+              <Link to="/cards" className="text-xs text-mint hover:underline">
+                管理卡片
               </Link>
-            )}
+            </div>
+
             {error && (
               <p className="flex items-center gap-2 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
-                <ShieldAlert size={16} />
+                <ShieldAlert size={16} className="shrink-0" />
                 {error}
               </p>
             )}
-            {status === "sent" ? (
-              <div className="flex min-h-14 items-center justify-center gap-2 rounded bg-mint px-5 font-semibold text-white">
-                <CheckCircle2 size={20} />
-                已为你登录
+
+            {cards.length === 0 ? (
+              <div className="rounded border border-dashed border-black/20 bg-white p-6 text-center">
+                <p className="text-sm text-ink/60">还没有添加卡片</p>
+                <Link
+                  className="focus-ring mt-3 inline-flex items-center gap-1 rounded bg-ink px-4 py-2 text-sm font-medium text-white"
+                  to="/cards"
+                >
+                  先添加一张卡片
+                </Link>
               </div>
             ) : (
-              <button
-                className="focus-ring flex min-h-16 items-center justify-center gap-3 rounded bg-ink px-5 text-lg font-semibold text-white disabled:opacity-60"
-                disabled={!selectedCard || status !== "idle"}
-                onClick={login}
-              >
-                <LocateFixed size={22} />
-                {status === "locating" ? "正在确认位置..." : status === "sending" ? "正在登录..." : "登录机台"}
-              </button>
+              <div className="grid gap-2.5">
+                {cards.map((card) => {
+                  const isThisCard = activeCardId === card.id;
+                  const isBusy = status !== "idle" && isThisCard;
+                  const isSuccess = status === "sent" && isThisCard;
+                  const isDisabled = status !== "idle" && !isThisCard;
+
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      disabled={status !== "idle"}
+                      onClick={() => loginWithCard(card.id)}
+                      className={`focus-ring flex min-h-16 w-full items-center justify-between gap-3 rounded border p-4 text-left transition-all ${
+                        isSuccess
+                          ? "border-mint bg-mint/10 text-mint"
+                          : isThisCard
+                          ? "border-ink bg-white shadow-soft"
+                          : "border-black/10 bg-white hover:border-black/25 hover:shadow-soft"
+                      } disabled:cursor-not-allowed ${isDisabled ? "opacity-40" : ""}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span
+                          className={`grid size-10 shrink-0 place-items-center rounded ${
+                            isSuccess ? "bg-mint text-white" : "bg-panel text-ink"
+                          }`}
+                        >
+                          {isSuccess ? (
+                            <CheckCircle2 size={20} />
+                          ) : isBusy ? (
+                            <Loader2 size={20} className="animate-spin text-ink/60" />
+                          ) : (
+                            <CreditCard size={20} />
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-ink">{card.label}</p>
+                          <p className="font-mono text-xs text-ink/50">尾号 {card.accessCode.slice(-4)}</p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        {isSuccess ? (
+                          <span className="text-sm font-semibold text-mint">已为你登录</span>
+                        ) : isThisCard && status === "locating" ? (
+                          <span className="flex items-center gap-1 text-xs font-medium text-ink/70">
+                            <LocateFixed size={14} className="animate-pulse" />
+                            确认位置...
+                          </span>
+                        ) : isThisCard && status === "sending" ? (
+                          <span className="text-xs font-medium text-ink/70">正在登录...</span>
+                        ) : (
+                          <span className="focus-ring inline-flex items-center gap-1 rounded bg-ink px-3 py-1.5 text-xs font-semibold text-white">
+                            <LocateFixed size={14} />
+                            点击登录
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}

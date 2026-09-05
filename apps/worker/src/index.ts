@@ -411,6 +411,33 @@ app.post("/api/merchant/shops", async (c) => {
   return c.json({ shop: { id: shopId, ...body, radiusMeters: clampShopRadius(body.radiusMeters) } }, 201);
 });
 
+app.delete("/api/merchant/shops/:id", async (c) => {
+  const user = requireUser(c);
+  const shopId = c.req.param("id");
+  const shop = await c.env.DB.prepare("SELECT id FROM shops WHERE id = ?")
+    .bind(shopId)
+    .first<{ id: string }>();
+  if (!shop) jsonError(404, "没有找到这个店铺");
+
+  if (user.role !== "admin") {
+    const member = await c.env.DB.prepare(
+      "SELECT role FROM shop_members WHERE shop_id = ? AND user_id = ?",
+    )
+      .bind(shopId, user.id)
+      .first<{ role: string }>();
+    if (!member || member.role !== "owner") {
+      jsonError(403, "只有店铺负责人或管理员才能删除店铺");
+    }
+  }
+
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM machines WHERE shop_id = ?").bind(shopId),
+    c.env.DB.prepare("DELETE FROM shop_members WHERE shop_id = ?").bind(shopId),
+    c.env.DB.prepare("DELETE FROM shops WHERE id = ?").bind(shopId),
+  ]);
+  return c.json({ ok: true });
+});
+
 app.get("/api/merchant/shop-members", async (c) => {
   const user = requireUser(c);
   const shopId = c.req.query("shopId");
