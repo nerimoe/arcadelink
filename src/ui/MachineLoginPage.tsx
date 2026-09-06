@@ -27,12 +27,12 @@ export function MachineLoginPage() {
       return;
     }
     if (!ticket) {
-      setError("本次会话已失效，请重新扫描机台二维码或触碰 NFC 标签");
+      setError("本次会话已失效，请重新触碰机台 NFC 标签");
       return;
     }
     Api.publicMachine(publicId, ticket)
       .then((result) => setMachine(result.machine))
-      .catch((caught) => setError(caught instanceof Error ? caught.message : "没有找到这台机台"));
+      .catch(() => setError("机台暂时不可用，请稍后重试"));
   }, [publicId, ticket, queryError]);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export function MachineLoginPage() {
   const loginWithCard = async (cardId: string) => {
     if (status !== "idle") return;
     if (!ticket) {
-      setError("本次会话已失效，请重新扫描机台二维码或触碰 NFC 标签");
+      setError("本次会话已失效，请重新触碰机台 NFC 标签");
       return;
     }
     setError(null);
@@ -84,7 +84,7 @@ export function MachineLoginPage() {
     } catch (caught) {
       setStatus("idle");
       setActiveCardId(null);
-      setError(caught instanceof Error ? caught.message : "登录失败，请稍后再试");
+      setError(friendlyLoginError(caught));
     }
   };
 
@@ -106,13 +106,13 @@ export function MachineLoginPage() {
   if (status === "destroyed") {
     return (
       <section className="mx-auto max-w-lg py-3">
-        <div className="rounded border border-mint/20 bg-panel p-6 shadow-soft text-center">
+        <div className="rounded border border-ink/10 bg-panel p-6 shadow-soft text-center">
           <span className="mx-auto grid size-14 place-items-center rounded-full bg-mint/10 text-mint mb-4">
             <CheckCircle2 size={32} />
           </span>
-          <h2 className="text-xl font-semibold text-ink">机台已识别卡片，祝游戏愉快！</h2>
+          <h2 className="text-xl font-semibold text-ink">已刷卡，请查看机台屏幕</h2>
           <p className="mt-2 text-sm text-ink/70">
-            本次临时会话已安全销毁。下一局游戏请再次触碰机台 NFC 标签。
+            本次会话已结束。若机台屏幕未识别，请重新触碰机台 NFC 标签。
           </p>
           <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <button
@@ -140,7 +140,7 @@ export function MachineLoginPage() {
             <ShieldAlert size={20} />
           </span>
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-ink">无法进入机台会话</h2>
+            <h2 className="text-lg font-semibold text-ink">暂时无法刷卡</h2>
             <p className="mt-1 text-sm text-ink/70">{error}</p>
           </div>
         </div>
@@ -164,7 +164,7 @@ export function MachineLoginPage() {
 
         {!user ? (
           <div className="mt-8 grid gap-3">
-            <p className="text-sm font-medium text-ink/70">请登录后直接刷卡：</p>
+            <p className="text-sm font-medium text-ink/70">登录账号后即可刷卡：</p>
             {passkeyError && (
               <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
                 {passkeyError}
@@ -175,7 +175,7 @@ export function MachineLoginPage() {
               href={`/api/auth/munet?next=${encodeURIComponent(munetNext)}`}
             >
               <Gamepad2 size={18} />
-              使用 MuNET 继续
+              使用 MuNET 登录
             </a>
             {browserSupportsWebAuthn() && (
               <button
@@ -191,7 +191,7 @@ export function MachineLoginPage() {
         ) : (
           <div className="mt-8 grid gap-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-ink/70">点击卡片直接登录：</p>
+              <p className="text-sm font-medium text-ink/70">点击卡片直接刷卡：</p>
               <Link to="/cards" className="text-xs text-mint hover:underline">
                 管理卡片
               </Link>
@@ -208,7 +208,7 @@ export function MachineLoginPage() {
               <div className="flex items-center justify-between rounded border border-mint/30 bg-mint/10 px-3.5 py-2.5 text-sm text-mint">
                 <span className="flex items-center gap-2 font-medium">
                   <CheckCircle2 size={16} />
-                  登录成功，机台已响应
+                  已刷卡，请查看机台屏幕
                 </span>
                 <span className="text-xs font-semibold">{countdown} 秒后关闭会话</span>
               </div>
@@ -268,18 +268,16 @@ export function MachineLoginPage() {
 
                       <div className="shrink-0 text-right">
                         {isSuccess ? (
-                          <span className="text-sm font-semibold text-mint">已为你登录 ({countdown}s)</span>
-                        ) : isThisCard && status === "locating" ? (
+                          <span className="text-sm font-semibold text-mint">已刷卡 ({countdown}s)</span>
+                        ) : isBusy ? (
                           <span className="flex items-center gap-1 text-xs font-medium text-ink/70">
-                            <LocateFixed size={14} className="animate-pulse" />
-                            确认位置...
+                            <Loader2 size={14} className="animate-spin" />
+                            正在刷卡...
                           </span>
-                        ) : isThisCard && status === "sending" ? (
-                          <span className="text-xs font-medium text-ink/70">正在登录...</span>
                         ) : (
-                          <span className="focus-ring inline-flex items-center gap-1 rounded bg-ink px-3 py-1.5 text-xs font-semibold text-canvas">
-                            <LocateFixed size={14} />
-                            点击登录
+                          <span className="focus-ring inline-flex items-center gap-1 rounded bg-ink px-3.5 py-1.5 text-xs font-semibold text-canvas">
+                            <CreditCard size={14} />
+                            点击刷卡
                           </span>
                         )}
                       </div>
@@ -299,13 +297,33 @@ function Panel({ children }: { children: ReactNode }) {
   return <div className="mx-auto max-w-lg rounded border border-ink/10 bg-panel p-6 shadow-soft">{children}</div>;
 }
 
+function friendlyLoginError(err: unknown): string {
+  if (err instanceof Error) {
+    if (err.message === "geo_denied") return "请允许获取位置权限以确认在店内";
+    if (err.message === "geo_unsupported" || err.message === "geo_failed") return "无法确认你的位置，请检查手机定位";
+    if (err.message.includes("请到店内") || err.message.includes("位置确认失败")) {
+      return "不在机厅允许的距离范围内，请靠近机台再试";
+    }
+    if (err.message.includes("会话已失效") || err.message.includes("缺少会话凭证")) {
+      return "本次会话已失效，请重新触碰机台 NFC 标签";
+    }
+  }
+  return "刷卡未成功，请稍后重试或联系店员";
+}
+
 function getPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("当前浏览器无法确认你的位置"));
+      reject(new Error("geo_unsupported"));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
+    navigator.geolocation.getCurrentPosition(resolve, (err) => {
+      if (err.code === err.PERMISSION_DENIED) {
+        reject(new Error("geo_denied"));
+      } else {
+        reject(new Error("geo_failed"));
+      }
+    }, {
       enableHighAccuracy: true,
       timeout: 12_000,
       maximumAge: 15_000,
