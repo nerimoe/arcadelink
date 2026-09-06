@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { finishMunetAuth, munetAuthorizeUrl, refreshMunetTokens } from "../src/munet";
+import { finishMunetAuth, munetAuthorizeUrl, refreshMunetTokens } from "../../worker/munet";
 
 afterEach(() => vi.restoreAllMocks());
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkLocation, clampShopRadius, haversineMeters } from "../src/geo";
+import { checkLocation, clampShopRadius, haversineMeters } from "../../worker/geo";
 
 describe("geo checks", () => {
   it("clamps shop radius to the configured policy", () => {

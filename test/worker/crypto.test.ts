@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decryptSecret, encryptSecret, sha256 } from "../src/crypto";
+import { decryptSecret, encryptSecret, sha256 } from "../../worker/crypto";
 
 describe("crypto helpers", () => {
   it("hashes sessions and encrypts machine URLs", async () => {

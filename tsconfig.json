@@ -10,6 +10,23 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": []
-  }
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": [
+      "bun-types",
+      "vite/client",
+      "vitest",
+      "node",
+      "@cloudflare/workers-types"
+    ]
+  },
+  "include": [
+    "src",
+    "worker",
+    "test",
+    "scripts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "worker/worker-configuration.d.ts"
+  ]
 }

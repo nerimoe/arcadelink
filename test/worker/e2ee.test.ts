@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fromBase64Url } from "../src/crypto";
-import { decryptE2EE, encryptE2EE, type EncryptedEnvelope } from "../src/e2ee";
+import { fromBase64Url } from "../../worker/crypto";
+import { decryptE2EE, encryptE2EE, type EncryptedEnvelope } from "../../worker/e2ee";
 
 describe("E2EE crypto", () => {
   const password = "test-remote-password";

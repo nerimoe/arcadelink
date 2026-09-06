@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { decryptE2EE } from "../src/e2ee";
-import { sendHinataCard } from "../src/hinata";
+import { decryptE2EE } from "../../worker/e2ee";
+import { sendHinataCard } from "../../worker/hinata";
 
 describe("HINATA sender", () => {
   it("posts aime card payload to the target URL", async () => {

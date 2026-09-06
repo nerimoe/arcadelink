@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { passkeyProviderName } from "../src/passkeys";
+import { passkeyProviderName } from "../../worker/passkeys";
 
 describe("passkey provider names", () => {
   it("recognizes common synced passkey providers", () => {

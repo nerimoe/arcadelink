@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessCodeSchema, machineLoginSchema, setUserRoleSchema } from "../src/validators";
+import { accessCodeSchema, machineLoginSchema, setUserRoleSchema } from "../../worker/validators";
 
 describe("accessCodeSchema", () => {
   it("accepts valid 20-digit access codes not starting with 3", () => {

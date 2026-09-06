@@ -1,8 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "arcadelink-api",
-  "account_id": "23bd231499318d1677ffbb1b9dd704ae",
-  "main": "src/index.ts",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-05-04",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
@@ -16,7 +15,7 @@
     }
   ],
   "assets": {
-    "directory": "../web/dist",
+    "directory": "dist",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/callback", "/t/*"]
   },
@@ -24,7 +23,8 @@
     {
       "binding": "DB",
       "database_name": "arcadelink",
-      "database_id": "8f2b923d-6732-48e1-8e29-830d3b86449a"
+      "database_id": "8f2b923d-6732-48e1-8e29-830d3b86449a",
+      "migrations_dir": "migrations"
     }
   ],
   "kv_namespaces": [

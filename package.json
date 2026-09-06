@@ -1,17 +1,48 @@
 {
   "name": "arcadelink",
   "private": true,
-  "packageManager": "pnpm@9.15.4",
+  "type": "module",
   "scripts": {
-    "dev": "pnpm --parallel --filter @arcadelink/* dev",
-    "build": "pnpm --recursive build",
-    "deploy": "wrangler deploy --cwd apps/worker",
-    "db:migrate": "wrangler d1 migrations apply arcadelink --remote --cwd apps/worker",
-    "test": "pnpm --recursive test",
-    "typecheck": "pnpm --recursive typecheck",
-    "lint": "pnpm --recursive lint"
+    "dev": "vite --host 0.0.0.0",
+    "dev:worker": "bun run wrangler:config --local && wrangler dev --config wrangler.generated.jsonc",
+    "build:web": "vite build",
+    "wrangler:config": "bun run scripts/generate-wrangler-config.ts",
+    "build": "bun run build:web && bun run wrangler:config",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "types:worker": "bun run wrangler:config --local && wrangler types worker/worker-configuration.d.ts --config wrangler.generated.jsonc",
+    "db:migrate": "bun run wrangler:config && wrangler d1 migrations apply DB --config wrangler.generated.jsonc --remote",
+    "db:migrate:local": "bun run wrangler:config --local && wrangler d1 migrations apply DB --config wrangler.generated.jsonc --local",
+    "deploy": "bun run wrangler:config && wrangler d1 migrations apply DB --config wrangler.generated.jsonc --remote && wrangler deploy --config wrangler.generated.jsonc"
+  },
+  "dependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.0.0",
+    "hono": "^4.7.11",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.511.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.6.1",
+    "zod": "^3.25.56"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "@cloudflare/vitest-pool-workers": "^0.8.19",
+    "@cloudflare/workers-types": "^4.20250508.0",
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.5.1",
+    "autoprefixer": "^10.4.21",
+    "bun-types": "^1.4.2",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.4",
+    "wrangler": "^4.18.0"
   }
 }
