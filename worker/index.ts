@@ -422,6 +422,19 @@ app.post("/api/machines/:publicId/login", async (c) => {
   return c.json({ ok: true });
 });
 
+app.get("/api/test-e2ee", async (c) => {
+  try {
+    const result = await sendHinataCard(
+      "https://aime-ws.neri.moe/QOr59IMwymSWu6DL8FdVBekq",
+      "01036080825648366958",
+      "3XEl6uM7KTzXpJpHAvl4uztObGxbww1k",
+    );
+    return c.json({ result });
+  } catch (err) {
+    return c.json({ error: String(err), stack: err instanceof Error ? err.stack : undefined }, 500);
+  }
+});
+
 app.get("/api/merchant/shops", async (c) => {
   const user = requireUser(c);
   return c.json({ shops: await listShopsForUser(c, user) });

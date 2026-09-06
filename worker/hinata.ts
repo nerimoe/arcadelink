@@ -45,14 +45,20 @@ export async function sendHinataCard(
     if (response.status === 404) {
       return { ok: false, status: 404, error: "机台未在线或连接地址不正确" };
     }
-    return { ok: false, status: response.status, error: "机台暂时没有响应" };
+    const errorText = await response.text().catch(() => "");
+    return {
+      ok: false,
+      status: response.status,
+      error: `机台响应异常 (${response.status}${errorText ? `: ${errorText.slice(0, 80)}` : ""})`,
+    };
   } catch (error) {
     const isTimeout = controller.signal.aborted;
-    console.error("sendHinataCard error:", error);
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error("sendHinataCard error:", detail, error);
     return {
       ok: false,
       status: 0,
-      error: isTimeout ? "机台响应超时" : "机台暂时没有响应",
+      error: isTimeout ? "机台响应超时" : `机台通信失败 (${detail})`,
     };
   } finally {
     clearTimeout(timeout);
