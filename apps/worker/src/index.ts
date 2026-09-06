@@ -395,7 +395,10 @@ app.post("/api/machines/:publicId/login", async (c) => {
   }
 
   const targetUrl = await decryptSecret(machine.hinata_url_encrypted, c.env.URL_ENCRYPTION_KEY);
-  const result = await sendHinataCard(targetUrl, card.access_code);
+  const password = machine.hinata_password_encrypted
+    ? await decryptSecret(machine.hinata_password_encrypted, c.env.URL_ENCRYPTION_KEY)
+    : null;
+  const result = await sendHinataCard(targetUrl, card.access_code, password);
   await recordLoginEvent(c, {
     userId: user.id,
     cardId: card.id,
@@ -526,7 +529,7 @@ app.get("/api/merchant/machines", async (c) => {
   if (!shopId) jsonError(400, "请选择店铺");
   if (!(await canAccessShop(c, user, shopId))) jsonError(403, "你没有这个店铺的管理权限");
   const machines = await c.env.DB.prepare(
-    "SELECT id, public_id AS publicId, shop_id AS shopId, name, enabled, created_at AS createdAt FROM machines WHERE shop_id = ? ORDER BY created_at DESC",
+    "SELECT id, public_id AS publicId, shop_id AS shopId, name, enabled, (hinata_password_encrypted IS NOT NULL AND hinata_password_encrypted != '') AS hasPassword, created_at AS createdAt FROM machines WHERE shop_id = ? ORDER BY created_at DESC",
   )
     .bind(shopId)
     .all();
@@ -540,12 +543,27 @@ app.post("/api/merchant/machines", async (c) => {
   const id = crypto.randomUUID();
   const publicId = randomPublicId();
   const encrypted = await encryptSecret(body.hinataUrl, c.env.URL_ENCRYPTION_KEY);
+  const encryptedPassword = body.hinataPassword
+    ? await encryptSecret(body.hinataPassword, c.env.URL_ENCRYPTION_KEY)
+    : null;
   await c.env.DB.prepare(
-    "INSERT INTO machines (id, public_id, shop_id, name, hinata_url_encrypted, enabled) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO machines (id, public_id, shop_id, name, hinata_url_encrypted, hinata_password_encrypted, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)",
   )
-    .bind(id, publicId, body.shopId, body.name, encrypted, body.enabled ? 1 : 0)
+    .bind(id, publicId, body.shopId, body.name, encrypted, encryptedPassword, body.enabled ? 1 : 0)
     .run();
-  return c.json({ machine: { id, publicId, shopId: body.shopId, name: body.name, enabled: body.enabled } }, 201);
+  return c.json(
+    {
+      machine: {
+        id,
+        publicId,
+        shopId: body.shopId,
+        name: body.name,
+        enabled: body.enabled,
+        hasPassword: Boolean(encryptedPassword),
+      },
+    },
+    201,
+  );
 });
 
 app.patch("/api/merchant/machines/:id", async (c) => patchMachine(c, c.req.param("id")));
@@ -613,10 +631,27 @@ async function patchMachine(c: Context<AppBindings>, id: string) {
   if (!machine) jsonError(404, "没有找到这台设备");
   if (!(await canAccessShop(c, user, machine.shop_id))) jsonError(403, "你没有这个店铺的管理权限");
   const encryptedUrl = body.hinataUrl ? await encryptSecret(body.hinataUrl, c.env.URL_ENCRYPTION_KEY) : null;
+  const hasPasswordUpdate = body.hinataPassword !== undefined;
+  const encryptedPassword = body.hinataPassword
+    ? await encryptSecret(body.hinataPassword, c.env.URL_ENCRYPTION_KEY)
+    : null;
   await c.env.DB.prepare(
-    "UPDATE machines SET name = COALESCE(?, name), hinata_url_encrypted = COALESCE(?, hinata_url_encrypted), enabled = COALESCE(?, enabled), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    `UPDATE machines
+     SET name = COALESCE(?, name),
+         hinata_url_encrypted = COALESCE(?, hinata_url_encrypted),
+         enabled = COALESCE(?, enabled),
+         hinata_password_encrypted = CASE WHEN ? = 1 THEN ? ELSE hinata_password_encrypted END,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
   )
-    .bind(body.name ?? null, encryptedUrl, typeof body.enabled === "boolean" ? (body.enabled ? 1 : 0) : null, id)
+    .bind(
+      body.name ?? null,
+      encryptedUrl,
+      typeof body.enabled === "boolean" ? (body.enabled ? 1 : 0) : null,
+      hasPasswordUpdate ? 1 : 0,
+      encryptedPassword,
+      id,
+    )
     .run();
   return c.json({ ok: true });
 }

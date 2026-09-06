@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Activity, Link2, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
+import { Activity, Link2, Lock, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
 import { Api, type LoginEvent, type Machine, type Shop, type ShopMember } from "../api";
 import { useAuth } from "./AuthContext";
 import { MapPicker } from "./MapPicker";
@@ -256,15 +256,23 @@ function parseCoordinate(value: string): number | null {
 function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => void | Promise<void> }) {
   const [name, setName] = useState("");
   const [hinataUrl, setHinataUrl] = useState("");
+  const [hinataPassword, setHinataPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
     try {
-      await Api.createMachine({ shopId, name, hinataUrl, enabled: true });
+      await Api.createMachine({
+        shopId,
+        name,
+        hinataUrl,
+        enabled: true,
+        ...(hinataPassword.trim() ? { hinataPassword: hinataPassword.trim() } : {}),
+      });
       setName("");
       setHinataUrl("");
+      setHinataPassword("");
       await onCreated();
     } finally {
       setBusy(false);
@@ -280,6 +288,14 @@ function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => v
       <div className="mt-4 grid gap-3">
         <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="设备名称" value={name} onChange={(event) => setName(event.target.value)} required />
         <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="机台连接地址" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} required />
+        <input
+          type="password"
+          className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3"
+          placeholder="E2EE 加密密码（可选）"
+          value={hinataPassword}
+          onChange={(event) => setHinataPassword(event.target.value)}
+          autoComplete="new-password"
+        />
         <button className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded bg-mint px-4 font-medium text-white disabled:opacity-60" disabled={busy}>
           <Plus size={18} />
           生成登录入口
@@ -349,16 +365,26 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
 
 function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () => void | Promise<void> }) {
   const url = `${window.location.origin}/t/${machine.publicId}`;
+  const hasPassword = Boolean(machine.hasPassword);
   const [name, setName] = useState(machine.name);
   const [hinataUrl, setHinataUrl] = useState("");
+  const [hinataPassword, setHinataPassword] = useState("");
+  const [clearPassword, setClearPassword] = useState(false);
   const [enabled, setEnabled] = useState(Number(machine.enabled) === 1 || machine.enabled === true);
   const [busy, setBusy] = useState(false);
-  const isChanged = name !== machine.name || enabled !== (Number(machine.enabled) === 1 || machine.enabled === true) || hinataUrl.trim().length > 0;
+  const isChanged =
+    name !== machine.name ||
+    enabled !== (Number(machine.enabled) === 1 || machine.enabled === true) ||
+    hinataUrl.trim().length > 0 ||
+    hinataPassword.trim().length > 0 ||
+    clearPassword;
 
   useEffect(() => {
     setName(machine.name);
     setEnabled(Number(machine.enabled) === 1 || machine.enabled === true);
     setHinataUrl("");
+    setHinataPassword("");
+    setClearPassword(false);
   }, [machine]);
 
   return (
@@ -368,13 +394,57 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
       </div>
       <div className="min-w-0">
         <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-          <input className="focus-ring min-h-10 rounded border border-ink/10 bg-panel px-3 font-semibold" value={name} onChange={(event) => setName(event.target.value)} />
+          <div className="flex items-center gap-2">
+            <input className="focus-ring min-h-10 flex-1 rounded border border-ink/10 bg-panel px-3 font-semibold" value={name} onChange={(event) => setName(event.target.value)} />
+            {hasPassword && !clearPassword && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded bg-mint/10 px-2 py-1 text-xs font-medium text-mint" title="已配置端到端加密密码">
+                <Lock size={12} />
+                E2EE
+              </span>
+            )}
+          </div>
           <label className="flex items-center gap-2 rounded border border-ink/10 bg-panel px-3 text-sm font-medium">
             <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
             可使用
           </label>
         </div>
         <input className="focus-ring mt-2 min-h-10 w-full rounded border border-ink/10 bg-panel px-3 text-sm" placeholder="连接地址（可选）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} />
+        <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <input
+            type="password"
+            className="focus-ring min-h-10 rounded border border-ink/10 bg-panel px-3 text-sm disabled:opacity-50"
+            placeholder={
+              clearPassword
+                ? "将清除当前加密密码"
+                : hasPassword
+                  ? "已配置加密密码（留空保持不变）"
+                  : "端到端加密密码（可选）"
+            }
+            value={hinataPassword}
+            onChange={(event) => {
+              setHinataPassword(event.target.value);
+              if (clearPassword) setClearPassword(false);
+            }}
+            disabled={clearPassword}
+            autoComplete="new-password"
+          />
+          {hasPassword && (
+            <button
+              type="button"
+              className={`focus-ring rounded border px-3 text-xs font-medium ${
+                clearPassword
+                  ? "border-coral bg-coral/10 text-coral"
+                  : "border-ink/15 text-ink/70 hover:bg-panel"
+              }`}
+              onClick={() => {
+                setClearPassword(!clearPassword);
+                setHinataPassword("");
+              }}
+            >
+              {clearPassword ? "取消清除" : "清除密码"}
+            </button>
+          )}
+        </div>
         <div className="mt-4 flex min-w-0 items-center gap-2 rounded border border-ink/10 bg-panel px-3 py-2">
           <Link2 size={16} className="shrink-0 text-mint" />
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm">{url}</span>
@@ -389,7 +459,17 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
             onClick={async () => {
               setBusy(true);
               try {
-                await Api.updateMachine(machine.id, { name, enabled, ...(hinataUrl.trim() ? { hinataUrl } : {}) });
+                const passwordUpdate = clearPassword
+                  ? { hinataPassword: null }
+                  : hinataPassword.trim()
+                    ? { hinataPassword: hinataPassword.trim() }
+                    : {};
+                await Api.updateMachine(machine.id, {
+                  name,
+                  enabled,
+                  ...(hinataUrl.trim() ? { hinataUrl } : {}),
+                  ...passwordUpdate,
+                });
                 await onChanged();
               } finally {
                 setBusy(false);

@@ -1,13 +1,13 @@
 const encoder = new TextEncoder();
 
-function toBase64Url(bytes: ArrayBuffer | Uint8Array): string {
+export function toBase64Url(bytes: ArrayBuffer | Uint8Array): string {
   const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   let binary = "";
   for (const byte of view) binary += String.fromCharCode(byte);
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
-function fromBase64Url(value: string): Uint8Array {
+export function fromBase64Url(value: string): Uint8Array {
   const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
   const binary = atob(padded);
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));

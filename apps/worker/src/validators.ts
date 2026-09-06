@@ -18,6 +18,7 @@ export const createMachineSchema = z.object({
   shopId: z.string().min(1),
   name: z.string().trim().min(1).max(80),
   hinataUrl: z.string().url().refine((value) => value.startsWith("https://"), "请填写正确的机台连接地址"),
+  hinataPassword: z.string().trim().max(128).optional().nullable(),
   enabled: z.boolean().default(true),
 });
 

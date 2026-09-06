@@ -46,6 +46,7 @@ export type Machine = {
   shopId: string;
   name: string;
   enabled: boolean | number;
+  hasPassword?: boolean | number;
 };
 
 export type UserSummary = {
@@ -164,9 +165,9 @@ export const Api = {
     api<{ shop: Shop }>("/api/merchant/shops", { method: "POST", body: JSON.stringify(input) }),
   deleteShop: (id: string) => api<{ ok: true }>(`/api/merchant/shops/${id}`, { method: "DELETE" }),
   machines: (shopId: string) => api<{ machines: Machine[] }>(`/api/merchant/machines?shopId=${encodeURIComponent(shopId)}`),
-  createMachine: (input: { shopId: string; name: string; hinataUrl: string; enabled: boolean }) =>
+  createMachine: (input: { shopId: string; name: string; hinataUrl: string; hinataPassword?: string | undefined; enabled: boolean }) =>
     api<{ machine: Machine }>("/api/merchant/machines", { method: "POST", body: JSON.stringify(input) }),
-  updateMachine: (id: string, input: { name?: string; hinataUrl?: string; enabled?: boolean }) =>
+  updateMachine: (id: string, input: { name?: string | undefined; hinataUrl?: string | undefined; hinataPassword?: string | null | undefined; enabled?: boolean | undefined }) =>
     api<{ ok: true }>(`/api/merchant/machines/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   deleteMachine: (id: string) => api<{ ok: true }>(`/api/merchant/machines/${id}`, { method: "DELETE" }),
   shopMembers: (shopId: string) => api<{ members: ShopMember[] }>(`/api/merchant/shop-members?shopId=${encodeURIComponent(shopId)}`),

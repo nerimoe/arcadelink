@@ -40,6 +40,7 @@ export type MachineRow = {
   shop_id: string;
   name: string;
   hinata_url_encrypted: string;
+  hinata_password_encrypted: string | null;
   enabled: number;
   shop_name: string;
   latitude: number;
