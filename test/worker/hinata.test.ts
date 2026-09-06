@@ -21,7 +21,7 @@ describe("HINATA sender", () => {
     vi.unstubAllGlobals();
   });
 
-  it("posts encrypted E2EE_V1 payload when password is provided", async () => {
+  it("posts encrypted E2EE_V2 payload when password is provided", async () => {
     let capturedBody = "";
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       capturedBody = init?.body as string;
@@ -37,7 +37,7 @@ describe("HINATA sender", () => {
     });
 
     const parsed = JSON.parse(capturedBody);
-    expect(parsed.action).toBe("E2EE_V1");
+    expect(parsed.action).toBe("E2EE_V2");
     const decrypted = await decryptE2EE("my-secret-pass", parsed);
     expect(decrypted).toEqual({
       action: "SET_CARD",

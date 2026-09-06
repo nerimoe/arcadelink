@@ -14,13 +14,13 @@ describe("E2EE crypto", () => {
   const nonce = fromBase64Url("Dw4NDAsKCQgHBgUE");
 
   const fixedFixture: EncryptedEnvelope = {
-    action: "E2EE_V1",
+    action: "E2EE_V2",
     body: {
       salt: "ABEiM0RVZneImaq7zN3u_w",
       nonce: "Dw4NDAsKCQgHBgUE",
       message_id: messageId,
       expires_at: expiresAt,
-      ciphertext: "2boPibGx_ErUB0K-8w2NPYaA6IK549jlVYQcZHoi_RAolCk7w8ktNj2WuKpVNftgGxS_08ksxVs97mw5l2Y-6JVv",
+      ciphertext: "OZU5zXM5HhtLwi-rHQ6Xf2ou38kkTuPEMvhNovG5DM0VclmXu75BwnlRCvXd3Dvnw2DQoTlUYbshYDC6ct2vSto4",
     },
   };
 
@@ -50,7 +50,7 @@ describe("E2EE crypto", () => {
       password: "arcade-secret-key",
       message,
     });
-    expect(envelope.action).toBe("E2EE_V1");
+    expect(envelope.action).toBe("E2EE_V2");
     expect(envelope.body.salt).toHaveLength(22); // 16 bytes base64url is 22 chars
     expect(envelope.body.nonce).toHaveLength(16); // 12 bytes base64url is 16 chars
 

@@ -1,13 +1,12 @@
 import { fromBase64Url, toBase64Url } from "./crypto";
-import { pbkdf2Sha256 } from "./pbkdf2-wasm";
 
-const ENVELOPE_ACTION = "E2EE_V1";
+const ENVELOPE_ACTION = "E2EE_V2";
 const SALT_LEN = 16;
 const NONCE_LEN = 12;
-const PBKDF2_ROUNDS = 600_000;
+const PBKDF2_ROUNDS = 20_000;
 
 export type EncryptedEnvelope = {
-  action: "E2EE_V1";
+  action: "E2EE_V2";
   body: {
     salt: string;
     nonce: string;
@@ -25,7 +24,7 @@ function asArrayBuffer(view: Uint8Array): ArrayBuffer {
 
 export function buildAad(salt: string, messageId: string, expiresAt?: number | null): Uint8Array {
   return new TextEncoder().encode(
-    `aimeio-remote-e2ee-v1\n${salt}\n${messageId}\n${expiresAt ?? ""}`,
+    `aimeio-remote-e2ee-v2\n${salt}\n${messageId}\n${expiresAt ?? ""}`,
   );
 }
 
@@ -36,10 +35,21 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Cry
   if (existing) return existing;
 
   const promise = (async () => {
-    const rawKey = await pbkdf2Sha256(password, salt, PBKDF2_ROUNDS);
-    return crypto.subtle.importKey(
+    const passwordKey = await crypto.subtle.importKey(
       "raw",
-      asArrayBuffer(rawKey),
+      new TextEncoder().encode(password),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"],
+    );
+    return crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: asArrayBuffer(salt),
+        iterations: PBKDF2_ROUNDS,
+        hash: "SHA-256",
+      },
+      passwordKey,
       { name: "AES-GCM", length: 256 },
       false,
       ["encrypt", "decrypt"],
@@ -63,7 +73,7 @@ export async function encryptE2EE(options: {
 
   let salt = options.salt;
   if (!salt) {
-    // ponytail: deterministic salt per password avoids 600k PBKDF2 rounds on every card swipe
+    // ponytail: deterministic salt per password avoids PBKDF2 derivation on every card swipe
     const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`aimeio-salt:${password}`));
     salt = new Uint8Array(hash, 0, SALT_LEN);
   } else if (salt.length !== SALT_LEN) {
