@@ -1,4 +1,5 @@
 import { fromBase64Url, toBase64Url } from "./crypto";
+import { pbkdf2Sha256 } from "./pbkdf2-wasm";
 
 const ENVELOPE_ACTION = "E2EE_V1";
 const SALT_LEN = 16;
@@ -35,21 +36,10 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Cry
   if (existing) return existing;
 
   const promise = (async () => {
-    const baseKey = await crypto.subtle.importKey(
+    const rawKey = await pbkdf2Sha256(password, salt, PBKDF2_ROUNDS);
+    return crypto.subtle.importKey(
       "raw",
-      new TextEncoder().encode(password),
-      "PBKDF2",
-      false,
-      ["deriveKey"],
-    );
-    return crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: asArrayBuffer(salt),
-        iterations: PBKDF2_ROUNDS,
-        hash: "SHA-256",
-      },
-      baseKey,
+      asArrayBuffer(rawKey),
       { name: "AES-GCM", length: 256 },
       false,
       ["encrypt", "decrypt"],
