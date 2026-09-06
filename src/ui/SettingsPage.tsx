@@ -113,7 +113,7 @@ export function SettingsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="flex items-center gap-2 font-semibold"><Store size={18} />店家管理</h2>
-              <p className="mt-1 text-sm text-ink/60">管理或创建你的街机店铺与机台登录入口</p>
+              <p className="mt-1 text-sm text-ink/60">管理你的店铺和设备</p>
             </div>
             <Link to="/merchant" className="focus-ring inline-flex min-h-9 items-center justify-center rounded bg-ink px-4 text-sm font-medium text-canvas">
               前往管理

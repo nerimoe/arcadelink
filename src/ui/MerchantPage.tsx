@@ -291,7 +291,7 @@ function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => v
         <input
           type="password"
           className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3"
-          placeholder="E2EE 加密密码（可选）"
+          placeholder="加密密码（可选）"
           value={hinataPassword}
           onChange={(event) => setHinataPassword(event.target.value)}
           autoComplete="new-password"
@@ -397,7 +397,7 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
           <div className="flex items-center gap-2">
             <input className="focus-ring min-h-10 flex-1 rounded border border-ink/10 bg-panel px-3 font-semibold" value={name} onChange={(event) => setName(event.target.value)} />
             {hasPassword && !clearPassword && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded bg-mint/10 px-2 py-1 text-xs font-medium text-mint" title="已配置端到端加密密码">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded bg-mint/10 px-2 py-1 text-xs font-medium text-mint" title="已配置加密密码">
                 <Lock size={12} />
                 E2EE
               </span>
@@ -418,7 +418,7 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
                 ? "将清除当前加密密码"
                 : hasPassword
                   ? "已配置加密密码（留空保持不变）"
-                  : "端到端加密密码（可选）"
+                  : "加密密码（可选）"
             }
             value={hinataPassword}
             onChange={(event) => {
@@ -431,11 +431,10 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
           {hasPassword && (
             <button
               type="button"
-              className={`focus-ring rounded border px-3 text-xs font-medium ${
-                clearPassword
-                  ? "border-coral bg-coral/10 text-coral"
-                  : "border-ink/15 text-ink/70 hover:bg-panel"
-              }`}
+              className={`focus-ring rounded border px-3 text-xs font-medium ${clearPassword
+                ? "border-coral bg-coral/10 text-coral"
+                : "border-ink/15 text-ink/70 hover:bg-panel"
+                }`}
               onClick={() => {
                 setClearPassword(!clearPassword);
                 setHinataPassword("");
