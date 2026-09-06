@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Activity, Link2, Lock, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
+import { Activity, Link2, Lock, Pencil, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
 import { Api, type LoginEvent, type Machine, type Shop, type ShopMember } from "../api";
 import { useAuth } from "./AuthContext";
 import { MapPicker } from "./MapPicker";
@@ -15,6 +15,7 @@ export function MerchantPage() {
   const [events, setEvents] = useState<LoginEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showShopForm, setShowShopForm] = useState(false);
+  const [editingShop, setEditingShop] = useState<Shop | null>(null);
   const [deletingShop, setDeletingShop] = useState(false);
 
   const loadShops = useCallback(async () => {
@@ -40,6 +41,7 @@ export function MerchantPage() {
   }, [loadShops, user]);
 
   useEffect(() => {
+    setEditingShop(null);
     if (!selectedShopId) {
       setMachines([]);
       setMembers([]);
@@ -104,7 +106,7 @@ export function MerchantPage() {
             <ShopForm
               isCollapsible={shops.length > 0}
               onCancel={() => setShowShopForm(false)}
-              onCreated={async (shop) => {
+              onSaved={async (shop) => {
                 await loadShops();
                 setSelectedShopId(shop.id);
                 setShowShopForm(false);
@@ -125,20 +127,50 @@ export function MerchantPage() {
 
         <div className="grid content-start gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold">{selectedShop?.name || "店家管理"}</h1>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold">{selectedShop?.name || "店家管理"}</h1>
+              {selectedShop && (
+                <p className="mt-1 text-xs text-ink/60">
+                  坐标: {selectedShop.latitude.toFixed(6)}, {selectedShop.longitude.toFixed(6)} · 打卡范围: {selectedShop.radiusMeters ?? selectedShop.radius_meters ?? 80} 米
+                </p>
+              )}
+            </div>
             {selectedShop && isOwnerOrAdmin && (
-              <button
-                type="button"
-                disabled={deletingShop}
-                className="focus-ring flex items-center gap-1.5 rounded border border-coral/30 px-3 py-1.5 text-xs font-medium text-coral hover:bg-coral/10 disabled:opacity-50"
-                onClick={deleteSelectedShop}
-                title="删除店铺"
-              >
-                <Trash2 size={14} />
-                删除店铺
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="focus-ring flex items-center gap-1.5 rounded border border-ink/20 px-3 py-1.5 text-xs font-medium text-ink hover:bg-ink/5"
+                  onClick={() => setEditingShop((prev) => (prev?.id === selectedShop.id ? null : selectedShop))}
+                  title="修改店铺位置与信息"
+                >
+                  <Pencil size={14} />
+                  {editingShop?.id === selectedShop.id ? "收起编辑" : "编辑店铺"}
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingShop}
+                  className="focus-ring flex items-center gap-1.5 rounded border border-coral/30 px-3 py-1.5 text-xs font-medium text-coral hover:bg-coral/10 disabled:opacity-50"
+                  onClick={deleteSelectedShop}
+                  title="删除店铺"
+                >
+                  <Trash2 size={14} />
+                  删除店铺
+                </button>
+              </div>
             )}
           </div>
+
+          {editingShop && (
+            <ShopForm
+              shop={editingShop}
+              isCollapsible
+              onCancel={() => setEditingShop(null)}
+              onSaved={async () => {
+                await loadShops();
+                setEditingShop(null);
+              }}
+            />
+          )}
           {!selectedShop ? (
             <div className="rounded border border-dashed border-ink/20 bg-surface p-8 text-center text-ink/60">
               <Store size={32} className="mx-auto mb-2 text-ink/40" />
@@ -164,20 +196,33 @@ export function MerchantPage() {
 }
 
 function ShopForm({
-  onCreated,
+  shop,
+  onSaved,
   isCollapsible,
   onCancel,
 }: {
-  onCreated: (shop: Shop) => void | Promise<void>;
+  shop?: Shop | null;
+  onSaved: (shop: Shop) => void | Promise<void>;
   isCollapsible?: boolean;
   onCancel?: () => void;
 }) {
-  const [name, setName] = useState("");
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
-  const [radiusMeters, setRadiusMeters] = useState("80");
+  const [name, setName] = useState(shop?.name ?? "");
+  const [latitude, setLatitude] = useState<number | null>(shop?.latitude ?? null);
+  const [longitude, setLongitude] = useState<number | null>(shop?.longitude ?? null);
+  const [radiusMeters, setRadiusMeters] = useState(
+    String(shop?.radiusMeters ?? shop?.radius_meters ?? 80),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (shop) {
+      setName(shop.name);
+      setLatitude(shop.latitude);
+      setLongitude(shop.longitude);
+      setRadiusMeters(String(shop.radiusMeters ?? shop.radius_meters ?? 80));
+    }
+  }, [shop]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -193,17 +238,27 @@ function ShopForm({
     setBusy(true);
     setError(null);
     try {
-      const result = await Api.createShop({
-        name,
-        latitude,
-        longitude,
-        radiusMeters: radius,
-      });
-      setName("");
-      setLatitude(null);
-      setLongitude(null);
-      setRadiusMeters("80");
-      await onCreated(result.shop);
+      if (shop) {
+        const result = await Api.updateShop(shop.id, {
+          name,
+          latitude,
+          longitude,
+          radiusMeters: radius,
+        });
+        await onSaved(result.shop);
+      } else {
+        const result = await Api.createShop({
+          name,
+          latitude,
+          longitude,
+          radiusMeters: radius,
+        });
+        setName("");
+        setLatitude(null);
+        setLongitude(null);
+        setRadiusMeters("80");
+        await onSaved(result.shop);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "保存店铺失败");
     } finally {
@@ -216,9 +271,9 @@ function ShopForm({
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-semibold">
           <Store size={21} />
-          {isCollapsible ? "新建店铺" : "添加店铺"}
+          {shop ? `编辑店铺「${shop.name}」` : isCollapsible ? "新建店铺" : "添加店铺"}
         </h2>
-        {isCollapsible && onCancel && (
+        {(isCollapsible || shop) && onCancel && (
           <button
             type="button"
             className="focus-ring rounded p-1 text-ink/60 hover:bg-ink/5"
@@ -299,10 +354,10 @@ function ShopForm({
         </label>
         <div className="flex gap-2">
           <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy}>
-            <Plus size={18} />
-            保存店铺
+            {shop ? <Save size={18} /> : <Plus size={18} />}
+            {shop ? "保存修改" : "保存店铺"}
           </button>
-          {isCollapsible && onCancel && (
+          {(isCollapsible || shop) && onCancel && (
             <button
               type="button"
               className="focus-ring rounded border border-ink/15 bg-surface px-4 font-medium text-ink hover:bg-ink/5"

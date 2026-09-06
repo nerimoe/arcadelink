@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessCodeSchema, createMachineSchema, createShopSchema, machineLoginSchema, setUserRoleSchema } from "../../worker/validators";
+import { accessCodeSchema, createMachineSchema, createShopSchema, machineLoginSchema, patchShopSchema, setUserRoleSchema } from "../../worker/validators";
 
 describe("accessCodeSchema", () => {
   it("accepts valid 20-digit access codes not starting with 3", () => {
@@ -83,6 +83,22 @@ describe("createShopSchema", () => {
         radiusMeters: 1500,
       })
     ).toThrow("允许距离最大为 1000 米");
+  });
+});
+
+describe("patchShopSchema", () => {
+  it("accepts partial shop updates", () => {
+    expect(patchShopSchema.parse({ name: "新名称" })).toEqual({ name: "新名称" });
+    expect(patchShopSchema.parse({ radiusMeters: 500 })).toEqual({ radiusMeters: 500 });
+    expect(patchShopSchema.parse({ latitude: 31.23, longitude: 121.47 })).toEqual({
+      latitude: 31.23,
+      longitude: 121.47,
+    });
+  });
+
+  it("validates fields when provided", () => {
+    expect(() => patchShopSchema.parse({ radiusMeters: 2000 })).toThrow("允许距离最大为 1000 米");
+    expect(() => patchShopSchema.parse({ name: "" })).toThrow("请输入店铺名称");
   });
 });
 

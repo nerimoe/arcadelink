@@ -14,7 +14,8 @@ export function MachineLoginPage() {
   const { user, loading, refresh } = useAuth();
   const [machine, setMachine] = useState<PublicMachine | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
-  const [status, setStatus] = useState<"idle" | "locating" | "sending" | "sent">("idle");
+  const [status, setStatus] = useState<"idle" | "locating" | "sending" | "sent" | "destroyed">("idle");
+  const [countdown, setCountdown] = useState(3);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
@@ -78,6 +79,7 @@ export function MachineLoginPage() {
         ticket,
       });
       window.history.replaceState(null, "", `/m/${publicId}?expired=1`);
+      setCountdown(3);
       setStatus("sent");
     } catch (caught) {
       setStatus("idle");
@@ -86,7 +88,50 @@ export function MachineLoginPage() {
     }
   };
 
+  useEffect(() => {
+    if (status !== "sent") return;
+    if (countdown <= 0) {
+      setStatus("destroyed");
+      setCards([]);
+      setActiveCardId(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [status, countdown]);
+
   if (loading) return <Panel>加载中...</Panel>;
+  if (status === "destroyed") {
+    return (
+      <section className="mx-auto max-w-lg py-3">
+        <div className="rounded border border-mint/20 bg-panel p-6 shadow-soft text-center">
+          <span className="mx-auto grid size-14 place-items-center rounded-full bg-mint/10 text-mint mb-4">
+            <CheckCircle2 size={32} />
+          </span>
+          <h2 className="text-xl font-semibold text-ink">机台已识别卡片，祝游戏愉快！</h2>
+          <p className="mt-2 text-sm text-ink/70">
+            本次临时会话已安全销毁。下一局游戏请再次触碰机台 NFC 标签。
+          </p>
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                window.close();
+                setTimeout(() => {
+                  alert("由于浏览器安全限制无法直接关闭页面，您可以直接离开或关闭当前标签页。");
+                }, 300);
+              }}
+              className="focus-ring inline-flex items-center justify-center rounded bg-ink px-5 py-2.5 text-sm font-semibold text-canvas hover:bg-ink/90"
+            >
+              关闭此页面
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
   if (error && !machine) {
     return (
       <Panel>
@@ -159,6 +204,16 @@ export function MachineLoginPage() {
               </p>
             )}
 
+            {status === "sent" && (
+              <div className="flex items-center justify-between rounded border border-mint/30 bg-mint/10 px-3.5 py-2.5 text-sm text-mint">
+                <span className="flex items-center gap-2 font-medium">
+                  <CheckCircle2 size={16} />
+                  登录成功，机台已响应
+                </span>
+                <span className="text-xs font-semibold">{countdown} 秒后关闭会话</span>
+              </div>
+            )}
+
             {cards.length === 0 ? (
               <div className="rounded border border-dashed border-ink/20 bg-surface p-6 text-center">
                 <p className="text-sm text-ink/60">还没有添加卡片</p>
@@ -213,7 +268,7 @@ export function MachineLoginPage() {
 
                       <div className="shrink-0 text-right">
                         {isSuccess ? (
-                          <span className="text-sm font-semibold text-mint">已为你登录</span>
+                          <span className="text-sm font-semibold text-mint">已为你登录 ({countdown}s)</span>
                         ) : isThisCard && status === "locating" ? (
                           <span className="flex items-center gap-1 text-xs font-medium text-ink/70">
                             <LocateFixed size={14} className="animate-pulse" />

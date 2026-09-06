@@ -15,6 +15,8 @@ export const createShopSchema = z.object({
   radiusMeters: z.number().gte(30, "允许距离最小为 30 米").lte(1000, "允许距离最大为 1000 米").default(80),
 });
 
+export const patchShopSchema = createShopSchema.partial();
+
 export const createMachineSchema = z.object({
   shopId: z.string().min(1),
   name: z.string().trim().min(1).max(80),

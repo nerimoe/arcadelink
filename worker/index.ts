@@ -21,6 +21,7 @@ import {
   createBanSchema,
   createMachineSchema,
   createShopSchema,
+  patchShopSchema,
   machineLoginSchema,
   passkeyLabelSchema,
   passkeyNameSchema,
@@ -438,6 +439,49 @@ app.post("/api/merchant/shops", async (c) => {
       .bind(crypto.randomUUID(), shopId, user.id),
   ]);
   return c.json({ shop: { id: shopId, ...body, radiusMeters: clampShopRadius(body.radiusMeters) } }, 201);
+});
+
+app.patch("/api/merchant/shops/:id", async (c) => {
+  const user = requireUser(c);
+  const shopId = c.req.param("id");
+  if (!(await canAccessShop(c, user, shopId))) jsonError(403, "你没有这个店铺的管理权限");
+  if (user.role !== "admin") {
+    const member = await c.env.DB.prepare(
+      "SELECT role FROM shop_members WHERE shop_id = ? AND user_id = ?",
+    )
+      .bind(shopId, user.id)
+      .first<{ role: string }>();
+    if (!member || member.role !== "owner") {
+      jsonError(403, "只有店铺负责人或管理员才能修改店铺信息");
+    }
+  }
+
+  const body = patchShopSchema.parse(await c.req.json());
+  const radius = body.radiusMeters !== undefined ? clampShopRadius(body.radiusMeters) : null;
+  await c.env.DB.prepare(
+    `UPDATE shops
+     SET name = COALESCE(?, name),
+         latitude = COALESCE(?, latitude),
+         longitude = COALESCE(?, longitude),
+         radius_meters = COALESCE(?, radius_meters),
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+  )
+    .bind(
+      body.name ?? null,
+      body.latitude ?? null,
+      body.longitude ?? null,
+      radius,
+      shopId,
+    )
+    .run();
+
+  const updated = await c.env.DB.prepare(
+    "SELECT id, name, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
+  )
+    .bind(shopId)
+    .first();
+  return c.json({ shop: updated });
 });
 
 app.delete("/api/merchant/shops/:id", async (c) => {
