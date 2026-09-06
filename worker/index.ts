@@ -314,7 +314,7 @@ app.get("/t/:publicId", async (c) => {
   const publicId = c.req.param("publicId");
   const machine = await getMachineByPublicId(c.env.DB, publicId);
   if (!machine || machine.enabled !== 1) {
-    return c.redirect(`/m/${encodeURIComponent(publicId)}?error=${encodeURIComponent("没有找到这台机台")}`, 302);
+    return c.redirect(`/m/${encodeURIComponent(publicId)}?error=${encodeURIComponent("机台不可用")}`, 302);
   }
   const ticket = randomToken(24);
   await c.env.RATE_LIMIT.put(`ticket:${publicId}:${ticket}`, "1", { expirationTtl: 300 });
@@ -325,10 +325,10 @@ app.get("/api/machines/:publicId", async (c) => {
   const publicId = c.req.param("publicId");
   const ticket = c.req.query("ticket");
   if (!ticket || !(await c.env.RATE_LIMIT.get(`ticket:${publicId}:${ticket}`))) {
-    jsonError(403, "本次会话已失效，请重新扫描机台二维码或触碰 NFC 标签");
+    jsonError(403, "本次会话已失效");
   }
   const machine = await getMachineByPublicId(c.env.DB, publicId);
-  if (!machine || machine.enabled !== 1) jsonError(404, "没有找到这台机台");
+  if (!machine || machine.enabled !== 1) jsonError(404, "机台不可用");
   return c.json({
     machine: {
       publicId: machine.public_id,
@@ -347,19 +347,19 @@ app.post("/api/machines/:publicId/login", async (c) => {
   const publicId = c.req.param("publicId");
   const ticketKey = `ticket:${publicId}:${body.ticket}`;
   if (!(await c.env.RATE_LIMIT.get(ticketKey))) {
-    jsonError(403, "本次会话已失效，请重新扫描机台二维码或触碰 NFC 标签");
+    jsonError(403, "本次会话已失效");
   }
 
   const ip = clientIp(c.req.raw);
   const machine = await getMachineByPublicId(c.env.DB, publicId);
-  if (!machine || machine.enabled !== 1) jsonError(404, "没有找到这台机台");
+  if (!machine || machine.enabled !== 1) jsonError(404, "机台不可用");
 
   const card = await c.env.DB.prepare(
     "SELECT id, access_code FROM cards WHERE id = ? AND user_id = ? AND disabled_at IS NULL",
   )
     .bind(body.cardId, user.id)
     .first<{ id: string; access_code: string }>();
-  if (!card) jsonError(404, "没有找到这张卡片");
+  if (!card) jsonError(404, "卡片不可用或已失效");
 
   await assertNotBanned(c, [
     ["user", user.id],
@@ -392,7 +392,7 @@ app.post("/api/machines/:publicId/login", async (c) => {
       responseCode: null,
       errorMessage: location.reason,
     });
-    jsonError(403, location.reason === "low_accuracy" ? "位置确认失败，请到店内再试" : "请到店内再登录");
+    jsonError(403, "超出店内允许距离");
   }
 
   const targetUrl = await decryptSecret(machine.hinata_url_encrypted, c.env.URL_ENCRYPTION_KEY);
@@ -419,7 +419,7 @@ app.post("/api/machines/:publicId/login", async (c) => {
     await c.env.RATE_LIMIT.delete(ticketKey);
   }
 
-  if (!result.ok) jsonError(502, result.error || "机台暂时没有响应");
+  if (!result.ok) jsonError(502, "机台暂时不可用");
   return c.json({ ok: true });
 });
 

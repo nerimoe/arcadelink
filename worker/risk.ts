@@ -11,7 +11,7 @@ type LimitRule = {
 export async function enforceRateLimits(c: Context<AppBindings>, rules: LimitRule[]): Promise<void> {
   for (const rule of rules) {
     const count = await incrementCounter(c.env.RATE_LIMIT, rule.key, rule.windowSeconds);
-    if (count > rule.limit) jsonError(429, "操作太频繁，请稍后再试");
+    if (count > rule.limit) jsonError(429, "操作过于频繁，请稍后重试");
   }
 }
 
@@ -43,6 +43,6 @@ export async function assertNotBanned(c: Context<AppBindings>, subjects: Array<[
     )
       .bind(subjectType, subjectValue, nowIso())
       .first<{ id: string }>();
-    if (ban) jsonError(403, "暂时无法完成此操作");
+    if (ban) jsonError(403, "当前无法进行此操作");
   }
 }

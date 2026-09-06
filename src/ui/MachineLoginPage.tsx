@@ -292,13 +292,26 @@ function Panel({ children }: { children: ReactNode }) {
 
 function friendlyLoginError(err: unknown): string {
   if (err instanceof Error) {
-    if (err.message === "geo_denied") return "请允许获取位置权限以确认在店内";
-    if (err.message === "geo_unsupported" || err.message === "geo_failed") return "无法确认你的位置，请检查手机定位";
-    if (err.message.includes("请到店内") || err.message.includes("位置确认失败")) {
-      return "不在店内允许的距离范围内";
+    const msg = err.message;
+    if (msg === "geo_denied") return "需要定位权限";
+    if (msg === "geo_unsupported" || msg === "geo_failed") return "定位获取失败";
+    if (msg.includes("店内") || msg.includes("距离") || msg.includes("位置确认失败")) {
+      return "超出店内允许距离";
     }
-    if (err.message.includes("会话已失效") || err.message.includes("缺少会话凭证")) {
+    if (msg.includes("会话已失效") || msg.includes("缺少会话凭证")) {
       return "本次会话已失效";
+    }
+    if (msg.includes("频繁")) {
+      return "操作过于频繁，请稍后重试";
+    }
+    if (msg.includes("无法完成此操作") || msg.includes("当前无法进行此操作") || msg.includes("受限")) {
+      return "当前无法进行此操作";
+    }
+    if (msg.includes("卡片")) {
+      return "卡片不可用或已失效";
+    }
+    if (msg.includes("机台") || msg.includes("通信") || msg.includes("响应") || msg.includes("502")) {
+      return "机台暂时不可用，请稍后重试";
     }
   }
   return "登录失败，请稍后重试";
