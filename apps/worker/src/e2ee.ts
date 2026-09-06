@@ -95,9 +95,9 @@ export async function encryptE2EE(options: {
 
   const plaintext = new TextEncoder().encode(JSON.stringify(message));
   const ciphertextBuffer = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: asArrayBuffer(nonce), additionalData: aad },
+    { name: "AES-GCM", iv: asArrayBuffer(nonce), additionalData: asArrayBuffer(aad) },
     key,
-    plaintext,
+    asArrayBuffer(plaintext),
   );
 
   return {
@@ -126,7 +126,7 @@ export async function decryptE2EE(
   const key = await deriveKey(password, salt);
 
   const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: asArrayBuffer(nonce), additionalData: aad },
+    { name: "AES-GCM", iv: asArrayBuffer(nonce), additionalData: asArrayBuffer(aad) },
     key,
     asArrayBuffer(ciphertextWithTag),
   );
