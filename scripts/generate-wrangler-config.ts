@@ -5,21 +5,35 @@ import { fileURLToPath } from "node:url";
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const outputPath = fileURLToPath(new URL("../wrangler.generated.jsonc", import.meta.url));
 const redirectPath = fileURLToPath(new URL("../.wrangler/deploy/config.json", import.meta.url));
-const localOnly = process.argv.includes("--local");
+const localOnly = Bun.argv.includes("--local");
 
-const workerName = readOptional("ARCADELINK_WORKER_NAME") ?? "arcadelink-api";
-const accountId = readOptional("ARCADELINK_ACCOUNT_ID") ?? "23bd231499318d1677ffbb1b9dd704ae";
-const routePattern = readOptional("ARCADELINK_ROUTE_PATTERN") ?? "link.neri.moe";
-const appOrigin = readOptional("ARCADELINK_APP_ORIGIN") ?? "https://link.neri.moe";
-const munetClientId = readOptional("ARCADELINK_MUNET_CLIENT_ID") ?? "5cac2374-2d27-4e26-a710-fe1fe9e94b4a";
-const extraAllowedOrigins = readOptional("ARCADELINK_EXTRA_ALLOWED_ORIGINS") ?? "http://localhost:5173";
+const workerName = readConfigValue("ARCADELINK_WORKER_NAME", "arcadelink-api");
+const accountId = readOptional("ARCADELINK_ACCOUNT_ID");
+const routePattern = readOptional("ARCADELINK_ROUTE_PATTERN");
+const appOrigin = readConfigValue("ARCADELINK_APP_ORIGIN", "http://localhost:5173");
+const munetClientId = readConfigValue("ARCADELINK_MUNET_CLIENT_ID", "local-munet-client");
+const extraAllowedOrigins = readConfigValue("ARCADELINK_EXTRA_ALLOWED_ORIGINS", "http://localhost:5173");
 
-const databaseName = readOptional("ARCADELINK_D1_DATABASE_NAME") ?? "arcadelink";
+const databaseName = readConfigValue("ARCADELINK_D1_DATABASE_NAME", "arcadelink");
 const databaseId =
   readOptional("ARCADELINK_D1_DATABASE_ID") ??
-  (localOnly ? "00000000-0000-0000-0000-000000000000" : "8f2b923d-6732-48e1-8e29-830d3b86449a");
+  (localOnly ? "00000000-0000-0000-0000-000000000000" : undefined);
 const previewDatabaseId = readOptional("ARCADELINK_D1_PREVIEW_DATABASE_ID");
-const kvRateLimitId = readOptional("ARCADELINK_KV_RATE_LIMIT_ID") ?? "1df12f4558674675928e056f3a03e9b5";
+const kvRateLimitId = readConfigValue(
+  "ARCADELINK_KV_RATE_LIMIT_ID",
+  "00000000000000000000000000000000",
+);
+
+if (!localOnly) {
+  requireValue("ARCADELINK_ACCOUNT_ID", accountId);
+  requireValue("ARCADELINK_ROUTE_PATTERN", routePattern);
+}
+
+if (!databaseId) {
+  throw new Error(
+    "ARCADELINK_D1_DATABASE_ID is required. Set it in .env locally or in Cloudflare Workers Builds variables.",
+  );
+}
 
 validateWorkerName(workerName);
 validateDatabaseId("ARCADELINK_D1_DATABASE_ID", databaseId);
@@ -36,7 +50,7 @@ if (previewDatabaseId) databaseBinding.preview_database_id = previewDatabaseId;
 const config = {
   $schema: "node_modules/wrangler/config-schema.json",
   name: workerName,
-  account_id: accountId,
+  ...(accountId ? { account_id: accountId } : {}),
   main: "worker/index.ts",
   compatibility_date: "2026-05-04",
   compatibility_flags: ["nodejs_compat"],
@@ -88,6 +102,24 @@ console.log(`Generated ${relative(projectRoot, outputPath)} for Worker ${workerN
 function readOptional(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value || undefined;
+}
+
+function readConfigValue(name: string, localDefault: string): string {
+  return readOptional(name) ?? (localOnly ? localDefault : readRequired(name));
+}
+
+function readRequired(name: string): string {
+  const value = readOptional(name);
+  if (!value) {
+    throw new Error(`${name} is required. Set it in .env locally or in Cloudflare Workers Builds variables.`);
+  }
+  return value;
+}
+
+function requireValue(name: string, value: string | undefined): asserts value is string {
+  if (!value) {
+    throw new Error(`${name} is required. Set it in .env locally or in Cloudflare Workers Builds variables.`);
+  }
 }
 
 function validateWorkerName(value: string): void {

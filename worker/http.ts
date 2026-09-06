@@ -18,7 +18,6 @@ export function clientIp(request: Request): string {
 export function allowedOrigins(env: { APP_ORIGIN?: string; EXTRA_ALLOWED_ORIGINS?: string }): Set<string> {
   const values = [
     env.APP_ORIGIN,
-    "https://link.neri.moe",
     ...(env.EXTRA_ALLOWED_ORIGINS?.split(",") ?? []),
   ];
   return new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)));

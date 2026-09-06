@@ -8,9 +8,9 @@ declare namespace Cloudflare {
 	interface Env {
 		RATE_LIMIT: KVNamespace;
 		DB: D1Database;
-		APP_ORIGIN: "https://link.neri.moe";
-		MUNET_CLIENT_ID: "5cac2374-2d27-4e26-a710-fe1fe9e94b4a";
-		EXTRA_ALLOWED_ORIGINS: "http://localhost:5173";
+		APP_ORIGIN: string;
+		MUNET_CLIENT_ID: string;
+		EXTRA_ALLOWED_ORIGINS: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

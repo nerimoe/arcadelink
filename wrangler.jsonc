@@ -8,12 +8,7 @@
     "enabled": true,
     "head_sampling_rate": 1
   },
-  "routes": [
-    {
-      "pattern": "link.neri.moe",
-      "custom_domain": true
-    }
-  ],
+  "routes": [],
   "assets": {
     "directory": "dist",
     "not_found_handling": "single-page-application",
@@ -23,19 +18,15 @@
     {
       "binding": "DB",
       "database_name": "arcadelink",
-      "database_id": "8f2b923d-6732-48e1-8e29-830d3b86449a",
+      "database_id": "replace-with-your-d1-database-id",
       "migrations_dir": "migrations"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT",
-      "id": "1df12f4558674675928e056f3a03e9b5"
+      "id": "replace-with-your-kv-namespace-id"
     }
   ],
-  "vars": {
-    "APP_ORIGIN": "https://link.neri.moe",
-    "MUNET_CLIENT_ID": "5cac2374-2d27-4e26-a710-fe1fe9e94b4a",
-    "EXTRA_ALLOWED_ORIGINS": "http://localhost:5173"
-  }
+  "vars": {}
 }

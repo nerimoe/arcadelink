@@ -37,7 +37,7 @@ app.use(
   "*",
   cors({
     origin: (origin, c) => {
-      if (!origin) return c.env.APP_ORIGIN || "https://link.neri.moe";
+      if (!origin) return c.env.APP_ORIGIN;
       return allowedOrigins(c.env).has(origin) ? origin : "";
     },
     allowHeaders: ["content-type"],
