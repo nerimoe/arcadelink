@@ -616,7 +616,8 @@ app.delete("/api/admin/bans/:id", async (c) => {
 app.onError((error, c) => {
   if (error instanceof HTTPException) return error.getResponse();
   if (error instanceof z.ZodError) {
-    return c.json({ error: "请检查填写内容", issues: error.flatten() }, 400);
+    const message = error.errors[0]?.message || "请检查填写内容";
+    return c.json({ error: message, issues: error.flatten() }, 400);
   }
   console.error(error);
   return c.json({ error: error instanceof Error ? error.message : "Internal server error" }, 500);

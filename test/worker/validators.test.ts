@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessCodeSchema, machineLoginSchema, setUserRoleSchema } from "../../worker/validators";
+import { accessCodeSchema, createMachineSchema, createShopSchema, machineLoginSchema, setUserRoleSchema } from "../../worker/validators";
 
 describe("accessCodeSchema", () => {
   it("accepts valid 20-digit access codes not starting with 3", () => {
@@ -51,6 +51,68 @@ describe("machineLoginSchema", () => {
         accuracy: 15,
       })
     ).toThrow("缺少会话凭证");
+  });
+});
+
+describe("createShopSchema", () => {
+  it("accepts valid shop with 400m radius", () => {
+    const parsed = createShopSchema.parse({
+      name: "秋叶原机厅",
+      latitude: 35.6983,
+      longitude: 139.7731,
+      radiusMeters: 400,
+    });
+    expect(parsed.radiusMeters).toBe(400);
+  });
+
+  it("rejects radius smaller than 30 or larger than 1000", () => {
+    expect(() =>
+      createShopSchema.parse({
+        name: "店铺",
+        latitude: 35.0,
+        longitude: 139.0,
+        radiusMeters: 20,
+      })
+    ).toThrow("允许距离最小为 30 米");
+
+    expect(() =>
+      createShopSchema.parse({
+        name: "店铺",
+        latitude: 35.0,
+        longitude: 139.0,
+        radiusMeters: 1500,
+      })
+    ).toThrow("允许距离最大为 1000 米");
+  });
+});
+
+describe("createMachineSchema", () => {
+  it("normalizes wss to https and strips trailing slashes", () => {
+    const parsed = createMachineSchema.parse({
+      shopId: "shop_1",
+      name: "maimai",
+      hinataUrl: "  wss://aime-ws.neri.moe/QOr59IMwymSWu6DL8FdVBekq/  ",
+    });
+    expect(parsed.hinataUrl).toBe("https://aime-ws.neri.moe/QOr59IMwymSWu6DL8FdVBekq");
+  });
+
+  it("normalizes trailing slash on https urls", () => {
+    const parsed = createMachineSchema.parse({
+      shopId: "shop_1",
+      name: "chuni",
+      hinataUrl: "https://aime-ws.neri.moe/QOr59IMwymSWu6DL8FdVBekq/",
+    });
+    expect(parsed.hinataUrl).toBe("https://aime-ws.neri.moe/QOr59IMwymSWu6DL8FdVBekq");
+  });
+
+  it("rejects non-http/non-ws protocols or invalid urls", () => {
+    expect(() =>
+      createMachineSchema.parse({
+        shopId: "shop_1",
+        name: "bad",
+        hinataUrl: "ftp://example.com/not-allowed",
+      })
+    ).toThrow("请填写正确的机台连接地址");
   });
 });
 

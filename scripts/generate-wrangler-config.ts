@@ -53,7 +53,7 @@ const config = {
   ...(accountId ? { account_id: accountId } : {}),
   main: "worker/index.ts",
   compatibility_date: "2026-05-04",
-  compatibility_flags: ["nodejs_compat"],
+  compatibility_flags: ["nodejs_compat", "global_fetch_strictly_public"],
   observability: {
     enabled: true,
     head_sampling_rate: 1,

@@ -5,7 +5,8 @@ describe("geo checks", () => {
   it("clamps shop radius to the configured policy", () => {
     expect(clampShopRadius(5)).toBe(30);
     expect(clampShopRadius(80)).toBe(80);
-    expect(clampShopRadius(400)).toBe(200);
+    expect(clampShopRadius(400)).toBe(400);
+    expect(clampShopRadius(2000)).toBe(1000);
   });
 
   it("allows users inside the radius plus accuracy tolerance", () => {

@@ -46,4 +46,35 @@ describe("HINATA sender", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("normalizes wss/ws schemes, trailing slashes, and whitespace", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendHinataCard("  wss://aime-ws.neri.moe/QOr59IMwymSWu6DL8FdVBekq/  ", "12345678901234567890");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://aime-ws.neri.moe/QOr59IMwymSWu6DL8FdVBekq",
+      expect.anything(),
+    );
+
+    await sendHinataCard("ws://example.com/channel/", "12345678901234567890");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://example.com/channel",
+      expect.anything(),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it("returns helpful message when remote machine is not connected (404)", async () => {
+    const fetchMock = vi.fn(async () => new Response("No active client connected", { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await sendHinataCard("https://aime-ws.neri.moe/instance", "12345678901234567890");
+    expect(result).toEqual({
+      ok: false,
+      status: 404,
+      error: "机台未在线或连接地址不正确",
+    });
+    vi.unstubAllGlobals();
+  });
 });

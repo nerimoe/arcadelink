@@ -177,22 +177,35 @@ function ShopForm({
   const [longitude, setLongitude] = useState<number | null>(null);
   const [radiusMeters, setRadiusMeters] = useState("80");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (latitude === null || longitude === null) return;
+    if (latitude === null || longitude === null) {
+      setError("请在地图上选择或填写店铺位置");
+      return;
+    }
+    const radius = Number(radiusMeters);
+    if (!Number.isFinite(radius) || radius < 30 || radius > 1000) {
+      setError("允许打卡距离必须在 30 到 1000 米之间");
+      return;
+    }
     setBusy(true);
+    setError(null);
     try {
       const result = await Api.createShop({
         name,
         latitude,
         longitude,
-        radiusMeters: Number(radiusMeters),
+        radiusMeters: radius,
       });
       setName("");
       setLatitude(null);
       setLongitude(null);
+      setRadiusMeters("80");
       await onCreated(result.shop);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "保存店铺失败");
     } finally {
       setBusy(false);
     }
@@ -216,17 +229,74 @@ function ShopForm({
           </button>
         )}
       </div>
+      {error && <p className="mt-3 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
       <div className="mt-4 grid gap-3">
-        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="店铺名称" value={name} onChange={(event) => setName(event.target.value)} required />
-        <MapPicker latitude={latitude} longitude={longitude} onChange={(lat, lng) => {
-          setLatitude(lat);
-          setLongitude(lng);
-        }} />
-        <div className="grid grid-cols-2 gap-3">
-          <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="地图位置" value={latitude ?? ""} onChange={(event) => setLatitude(parseCoordinate(event.target.value))} required />
-          <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="地图位置" value={longitude ?? ""} onChange={(event) => setLongitude(parseCoordinate(event.target.value))} required />
+        <label className="grid gap-1.5 text-sm font-medium">
+          店铺名称
+          <input
+            className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3 font-normal"
+            placeholder="例如：万达广场机厅"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+          />
+        </label>
+
+        <div>
+          <span className="mb-1.5 block text-sm font-medium">店铺位置</span>
+          <MapPicker latitude={latitude} longitude={longitude} onChange={(lat, lng) => {
+            setLatitude(lat);
+            setLongitude(lng);
+          }} />
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <label className="grid gap-1 text-xs text-ink/70">
+              纬度 (Latitude)
+              <input
+                className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3 font-mono text-sm text-ink font-normal"
+                placeholder="点击地图或自动定位"
+                value={latitude ?? ""}
+                onChange={(event) => setLatitude(parseCoordinate(event.target.value))}
+                required
+              />
+            </label>
+            <label className="grid gap-1 text-xs text-ink/70">
+              经度 (Longitude)
+              <input
+                className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3 font-mono text-sm text-ink font-normal"
+                placeholder="点击地图或自动定位"
+                value={longitude ?? ""}
+                onChange={(event) => setLongitude(parseCoordinate(event.target.value))}
+                required
+              />
+            </label>
+          </div>
         </div>
-        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="允许距离，例如 80" value={radiusMeters} onChange={(event) => setRadiusMeters(event.target.value)} inputMode="numeric" />
+
+        <label className="grid gap-1.5 text-sm font-medium">
+          <div className="flex items-center justify-between">
+            <span>允许打卡距离范围</span>
+            <span className="text-xs font-normal text-ink/50">30 ~ 1000 米</span>
+          </div>
+          <div className="relative">
+            <input
+              type="number"
+              min={30}
+              max={1000}
+              className="focus-ring min-h-11 w-full rounded border border-ink/10 bg-surface px-3 pr-10 font-normal"
+              placeholder="默认 80"
+              value={radiusMeters}
+              onChange={(event) => setRadiusMeters(event.target.value)}
+              inputMode="numeric"
+              required
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink/50">
+              米
+            </span>
+          </div>
+          <span className="text-xs font-normal text-ink/50">
+            玩家扫码/碰卡打卡时，允许距离店铺中心点的最大距离偏差（默认 80 米）
+          </span>
+        </label>
         <div className="flex gap-2">
           <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy}>
             <Plus size={18} />
@@ -258,10 +328,12 @@ function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => v
   const [hinataUrl, setHinataUrl] = useState("");
   const [hinataPassword, setHinataPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
+    setError(null);
     try {
       await Api.createMachine({
         shopId,
@@ -274,6 +346,8 @@ function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => v
       setHinataUrl("");
       setHinataPassword("");
       await onCreated();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "添加设备失败");
     } finally {
       setBusy(false);
     }
@@ -285,9 +359,10 @@ function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => v
         <Terminal size={18} />
         添加设备
       </h2>
+      {error && <p className="mt-3 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
       <div className="mt-4 grid gap-3">
         <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="设备名称" value={name} onChange={(event) => setName(event.target.value)} required />
-        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="机台连接地址" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="机台连接地址（如 https://... 或 wss://...）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} required />
         <input
           type="password"
           className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3"
@@ -309,15 +384,19 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
   const [memberUser, setMemberUser] = useState("");
   const [role, setRole] = useState<ShopMember["role"]>("staff");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
+    setError(null);
     try {
       await Api.addShopMember({ shopId, user: memberUser, role });
       setMemberUser("");
       setRole("staff");
       await onChanged();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "添加成员失败");
     } finally {
       setBusy(false);
     }
@@ -329,6 +408,7 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
         <Users size={18} />
         店铺成员
       </h2>
+      {error && <p className="mt-3 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
       <form className="mt-4 grid gap-3" onSubmit={submit}>
         <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="MuNET 用户名或 ID" value={memberUser} onChange={(event) => setMemberUser(event.target.value)} required />
         <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -408,7 +488,7 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
             可使用
           </label>
         </div>
-        <input className="focus-ring mt-2 min-h-10 w-full rounded border border-ink/10 bg-panel px-3 text-sm" placeholder="连接地址（可选）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} />
+        <input className="focus-ring mt-2 min-h-10 w-full rounded border border-ink/10 bg-panel px-3 text-sm" placeholder="连接地址（可选，如 https://... 或 wss://...）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} />
         <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
           <input
             type="password"

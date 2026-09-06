@@ -7,7 +7,7 @@ export type LocationCheck = {
 
 export function clampShopRadius(radius: number): number {
   if (!Number.isFinite(radius)) return 80;
-  return Math.min(200, Math.max(30, Math.round(radius)));
+  return Math.min(1000, Math.max(30, Math.round(radius)));
 }
 
 export function haversineMeters(fromLat: number, fromLng: number, toLat: number, toLng: number): number {

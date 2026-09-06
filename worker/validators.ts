@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeHinataUrl } from "./hinata";
 
 export const accessCodeSchema = z.string().regex(/^[0-24-9]\d{19}$/, "卡片号码必须为20位数字且不能以3开头");
 
@@ -8,16 +9,27 @@ export const createCardSchema = z.object({
 });
 
 export const createShopSchema = z.object({
-  name: z.string().trim().min(1).max(80),
-  latitude: z.number().gte(-90).lte(90),
-  longitude: z.number().gte(-180).lte(180),
-  radiusMeters: z.number().gte(30).lte(200).default(80),
+  name: z.string().trim().min(1, "请输入店铺名称").max(80, "店铺名称最多80个字符"),
+  latitude: z.number().gte(-90, "纬度不正确").lte(90, "纬度不正确"),
+  longitude: z.number().gte(-180, "经度不正确").lte(180, "经度不正确"),
+  radiusMeters: z.number().gte(30, "允许距离最小为 30 米").lte(1000, "允许距离最大为 1000 米").default(80),
 });
 
 export const createMachineSchema = z.object({
   shopId: z.string().min(1),
   name: z.string().trim().min(1).max(80),
-  hinataUrl: z.string().url().refine((value) => value.startsWith("https://"), "请填写正确的机台连接地址"),
+  hinataUrl: z
+    .string()
+    .trim()
+    .transform(normalizeHinataUrl)
+    .refine((value) => {
+      try {
+        const url = new URL(value);
+        return url.protocol === "https:" || url.protocol === "http:";
+      } catch {
+        return false;
+      }
+    }, "请填写正确的机台连接地址"),
   hinataPassword: z.string().trim().max(128).optional().nullable(),
   enabled: z.boolean().default(true),
 });
