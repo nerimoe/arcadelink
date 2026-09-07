@@ -13,6 +13,7 @@ const routePattern = readOptional("ARCADELINK_ROUTE_PATTERN");
 const appOrigin = readConfigValue("ARCADELINK_APP_ORIGIN", "http://localhost:5173");
 const munetClientId = readConfigValue("ARCADELINK_MUNET_CLIENT_ID", "local-munet-client");
 const extraAllowedOrigins = readConfigValue("ARCADELINK_EXTRA_ALLOWED_ORIGINS", "http://localhost:5173");
+const appleTeamId = readConfigValue("ARCADELINK_APPLE_TEAM_ID", "XKKMJBTHX5");
 
 const databaseName = readConfigValue("ARCADELINK_D1_DATABASE_NAME", "arcadelink");
 const databaseId =
@@ -69,7 +70,7 @@ const config = {
   assets: {
     directory: "dist",
     not_found_handling: "single-page-application",
-    run_worker_first: ["/api/*", "/callback", "/t/*"],
+    run_worker_first: ["/api/*", "/callback", "/t/*", "/.well-known/*"],
   },
   d1_databases: [databaseBinding],
   kv_namespaces: [
@@ -82,6 +83,7 @@ const config = {
     APP_ORIGIN: appOrigin,
     MUNET_CLIENT_ID: munetClientId,
     EXTRA_ALLOWED_ORIGINS: extraAllowedOrigins,
+    APPLE_TEAM_ID: appleTeamId,
   },
 };
 

@@ -12,7 +12,7 @@
   "assets": {
     "directory": "dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/callback", "/t/*"]
+    "run_worker_first": ["/api/*", "/callback", "/t/*", "/.well-known/*"]
   },
   "d1_databases": [
     {
@@ -28,5 +28,7 @@
       "id": "replace-with-your-kv-namespace-id"
     }
   ],
-  "vars": {}
+  "vars": {
+    "APPLE_TEAM_ID": "XKKMJBTHX5"
+  }
 }

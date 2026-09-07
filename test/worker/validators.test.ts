@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { accessCodeSchema, createMachineSchema, createShopSchema, machineLoginSchema, patchShopSchema, setUserRoleSchema } from "../../worker/validators";
+import {
+  accessCodeSchema,
+  appClipAuthExchangeSchema,
+  createMachineSchema,
+  createShopSchema,
+  machineLoginSchema,
+  machineSessionStartSchema,
+  patchShopSchema,
+  setUserRoleSchema,
+} from "../../worker/validators";
 
 describe("accessCodeSchema", () => {
   it("accepts valid 20-digit access codes not starting with 3", () => {
@@ -51,6 +60,28 @@ describe("machineLoginSchema", () => {
         accuracy: 15,
       })
     ).toThrow("缺少会话凭证");
+  });
+});
+
+describe("machineSessionStartSchema", () => {
+  it("trims a public machine id", () => {
+    expect(machineSessionStartSchema.parse({ publicId: "  L9W3HD2P  " })).toEqual({ publicId: "L9W3HD2P" });
+  });
+
+  it("rejects a missing public machine id", () => {
+    expect(() => machineSessionStartSchema.parse({ publicId: "" })).toThrow("缺少机台编号");
+  });
+});
+
+describe("appClipAuthExchangeSchema", () => {
+  it("trims a short-lived native exchange code", () => {
+    expect(appClipAuthExchangeSchema.parse({ code: "  one-time-code  " })).toEqual({
+      code: "one-time-code",
+    });
+  });
+
+  it("rejects a missing exchange code", () => {
+    expect(() => appClipAuthExchangeSchema.parse({ code: "" })).toThrow("缺少授权码");
   });
 });
 
@@ -131,4 +162,3 @@ describe("createMachineSchema", () => {
     ).toThrow("请填写正确的机台连接地址");
   });
 });
-

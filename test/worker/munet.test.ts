@@ -1,9 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { finishMunetAuth, munetAuthorizeUrl, refreshMunetTokens } from "../../worker/munet";
+import { appClipAuthCallbackURLWithParams } from "../../worker/munet-appclip";
 
 afterEach(() => vi.restoreAllMocks());
 
 describe("MuNET OAuth", () => {
+  it("builds a native App Clip callback without exposing provider tokens", () => {
+    const callback = new URL(appClipAuthCallbackURLWithParams({ code: "exchange-code" }));
+    expect(callback.protocol).toBe("hinata-arcadelink-auth:");
+    expect(callback.host).toBe("callback");
+    expect(callback.searchParams.get("code")).toBe("exchange-code");
+    expect(callback.searchParams.has("access_token")).toBe(false);
+  });
+
   it("requests the login and card scopes", () => {
     const url = new URL(munetAuthorizeUrl("client", "https://example.com/callback", "state"));
     expect(url.origin + url.pathname).toBe("https://auth.mumur.net:550/connect/authorize");

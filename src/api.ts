@@ -23,12 +23,20 @@ export type Card = {
 };
 
 export type PublicMachine = {
-  publicId?: string;
+  publicId: string;
   name: string;
   shop: {
     name: string;
+    latitude: number;
+    longitude: number;
     radiusMeters: number;
   };
+};
+
+export type MachineSession = {
+  ticket: string;
+  expiresIn: number;
+  machine: PublicMachine;
 };
 
 export type Shop = {
@@ -144,6 +152,11 @@ export const Api = {
       body: JSON.stringify({ name }),
     }),
   cards: () => api<{ cards: Card[]; authorizationRequired: boolean; syncError: string | null }>("/api/cards"),
+  startMachineSession: (publicId: string) =>
+    api<MachineSession>("/api/machines/session/start", {
+      method: "POST",
+      body: JSON.stringify({ publicId }),
+    }),
   syncCards: () =>
     api<{ cards: Card[]; authorizationRequired: boolean; syncError: string | null }>("/api/cards/sync", {
       method: "POST",

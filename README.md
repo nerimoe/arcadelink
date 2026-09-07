@@ -31,6 +31,7 @@ The Wrangler configuration is generated from environment variables. The followin
 - `ARCADELINK_APP_ORIGIN`
 - `ARCADELINK_MUNET_CLIENT_ID`
 - `ARCADELINK_EXTRA_ALLOWED_ORIGINS`
+- `ARCADELINK_APPLE_TEAM_ID`
 - `ARCADELINK_D1_DATABASE_NAME`
 - `ARCADELINK_D1_DATABASE_ID`
 - `ARCADELINK_KV_RATE_LIMIT_ID`
@@ -43,6 +44,13 @@ Set these Worker secrets in Cloudflare:
 - `URL_ENCRYPTION_KEY`
 - `TURNSTILE_SECRET_KEY`
 - `MUNET_CLIENT_SECRET`
+
+MuNET must allow both browser and native callbacks:
+
+- `https://link.neri.moe/callback`
+- `https://link.neri.moe/api/appclip/auth/callback`
+
+The App Clip exchanges the native callback code at `/api/appclip/auth/exchange`; provider access and refresh tokens never pass through the App Clip URL.
 
 Production deploys one Worker with Workers Assets:
 

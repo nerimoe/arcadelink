@@ -12,8 +12,18 @@ import { checkLocation, clampShopRadius } from "./geo";
 import { allowedOrigins, assertAllowedOrigin, clientIp, jsonError } from "./http";
 import { assertNotBanned, enforceRateLimits, loginRateLimitRules } from "./risk";
 import { sendHinataCard } from "./hinata";
+import { appleAppSiteAssociationResponse } from "./apple";
+import { createMachineSession, publicMachine, resolveMachineSession } from "./machine-session";
 import { finishMunetAuth, munetAuthorizeUrl } from "./munet";
-import { munetCardStatements, munetCredentialStatement, syncMunetCards } from "./oauth";
+import {
+  appClipAuthCallbackURLWithParams,
+  consumeAppClipAuthCode,
+  consumeAppClipAuthState,
+  createAppClipAuthCode,
+  createAppClipAuthState,
+  provisionMunetUser,
+} from "./munet-appclip";
+import { syncMunetCards } from "./oauth";
 import { authenticationOptions, finishAuthentication, finishRegistration, registrationOptions } from "./passkeys";
 import type { AppBindings, AuthUser } from "./types";
 import {
@@ -21,8 +31,10 @@ import {
   createBanSchema,
   createMachineSchema,
   createShopSchema,
+  appClipAuthExchangeSchema,
   patchShopSchema,
   machineLoginSchema,
+  machineSessionStartSchema,
   passkeyLabelSchema,
   passkeyNameSchema,
   patchMachineSchema,
@@ -61,6 +73,10 @@ app.use("*", async (c, next) => {
 app.use("*", attachUser);
 
 app.get("/api/health", (c) => c.json({ ok: true }));
+
+app.get("/.well-known/apple-app-site-association", (c) => {
+  return appleAppSiteAssociationResponse(c.env.APPLE_TEAM_ID);
+});
 
 app.get("/api/me", async (c) => {
   const user = c.get("user");
@@ -161,6 +177,75 @@ app.get("/api/auth/munet", (c) => {
   return c.redirect(munetAuthorizeUrl(c.env.MUNET_CLIENT_ID, `${c.env.APP_ORIGIN}/callback`, state));
 });
 
+app.get("/api/appclip/auth/start", async (c) => {
+  if (!c.env.MUNET_CLIENT_ID || !c.env.MUNET_CLIENT_SECRET) jsonError(503, "MuNET 登录尚未配置");
+  const minute = Math.floor(Date.now() / 60_000);
+  await enforceRateLimits(c, [
+    {
+      key: `appclip-auth:start:${clientIp(c.req.raw)}:${minute}`,
+      limit: 5,
+      windowSeconds: 90,
+    },
+  ]);
+  const state = randomToken(24);
+  await createAppClipAuthState(c, state);
+  return c.redirect(
+    munetAuthorizeUrl(
+      c.env.MUNET_CLIENT_ID,
+      `${c.env.APP_ORIGIN}/api/appclip/auth/callback`,
+      state,
+    ),
+  );
+});
+
+app.get("/api/appclip/auth/callback", async (c) => {
+  const callback = (params: Record<string, string>) =>
+    c.redirect(appClipAuthCallbackURLWithParams(params));
+  const state = c.req.query("state");
+  const stateValid = state ? await consumeAppClipAuthState(c, state) : false;
+  if (!stateValid) return callback({ error: "MuNET 授权无效，请重新登录" });
+  if (c.req.query("error")) return callback({ error: "MuNET 授权已取消" });
+  const code = c.req.query("code");
+  if (!code) return callback({ error: "MuNET 授权无效，请重新登录" });
+
+  try {
+    const munet = await finishMunetAuth({
+      clientId: c.env.MUNET_CLIENT_ID,
+      clientSecret: c.env.MUNET_CLIENT_SECRET,
+      code,
+      redirectUri: `${c.env.APP_ORIGIN}/api/appclip/auth/callback`,
+    });
+    const { userId } = await provisionMunetUser(c, munet);
+    const exchangeCode = await createAppClipAuthCode(c, userId);
+    return callback({ code: exchangeCode });
+  } catch (error) {
+    console.error(error);
+    return callback({
+      error:
+        error instanceof z.ZodError
+          ? "MuNET 返回的数据无法识别"
+          : error instanceof Error
+            ? error.message
+            : "MuNET 登录失败",
+    });
+  }
+});
+
+app.post("/api/appclip/auth/exchange", async (c) => {
+  const minute = Math.floor(Date.now() / 60_000);
+  await enforceRateLimits(c, [
+    {
+      key: `appclip-auth:exchange:${clientIp(c.req.raw)}:${minute}`,
+      limit: 10,
+      windowSeconds: 90,
+    },
+  ]);
+  const body = appClipAuthExchangeSchema.parse(await c.req.json());
+  const userId = await consumeAppClipAuthCode(c, body.code);
+  await createSession(c, userId);
+  return c.json({ ok: true });
+});
+
 app.get("/callback", async (c) => {
   const next = safePath(getCookie(c, oauthNextCookie));
   const fail = (message: string) => c.redirect(`/login?error=${encodeURIComponent(message)}&next=${encodeURIComponent(next)}`);
@@ -178,46 +263,7 @@ app.get("/callback", async (c) => {
       code,
       redirectUri: `${c.env.APP_ORIGIN}/callback`,
     });
-    const identity = await c.env.DB.prepare(
-      `SELECT users.id, users.banned_at AS bannedAt, identities.id AS identityId
-       FROM auth_identities AS identities
-       JOIN users ON users.id = identities.user_id
-       WHERE identities.provider = 'munet' AND identities.provider_subject = ?`,
-    )
-      .bind(munet.subject)
-      .first<{ id: string; bannedAt: string | null; identityId: string }>();
-    if (identity?.bannedAt) return fail("这个账号暂时无法使用");
-
-    const userId = identity?.id ?? crypto.randomUUID();
-    const identityId = identity?.identityId ?? crypto.randomUUID();
-    const isNewUser = !identity;
-    const statements: D1PreparedStatement[] = [];
-    if (identity) {
-      statements.push(
-        c.env.DB.prepare(
-          `UPDATE auth_identities SET username = ?, display_name = ?, last_login_at = CURRENT_TIMESTAMP,
-                  updated_at = CURRENT_TIMESTAMP
-           WHERE provider = 'munet' AND provider_subject = ?`,
-        ).bind(munet.username, munet.name, munet.subject),
-      );
-    } else {
-      statements.push(
-        c.env.DB.prepare(
-          `INSERT INTO users (id, role)
-           SELECT ?, CASE WHEN EXISTS (SELECT 1 FROM users) THEN 'user' ELSE 'admin' END`,
-        ).bind(userId),
-        c.env.DB.prepare(
-          `INSERT INTO auth_identities
-             (id, user_id, provider, provider_subject, username, display_name, last_login_at)
-           VALUES (?, ?, 'munet', ?, ?, ?, CURRENT_TIMESTAMP)`,
-        ).bind(identityId, userId, munet.subject, munet.username, munet.name),
-      );
-    }
-    statements.push(
-      await munetCredentialStatement(c, identityId, munet.tokens),
-      ...(isNewUser ? munetCardStatements(c.env.DB, userId, munet.cards) : []),
-    );
-    if (statements.length) await c.env.DB.batch(statements);
+    const { userId, isNewUser } = await provisionMunetUser(c, munet);
     await createSession(c, userId);
     return c.redirect(isNewUser ? `/settings?setup=passkey&next=${encodeURIComponent(next)}` : next);
   } catch (error) {
@@ -311,41 +357,39 @@ app.delete("/api/cards/:id", async (c) => {
 });
 
 app.get("/t/:publicId", async (c) => {
-  const publicId = c.req.param("publicId");
-  const machine = await getMachineByPublicId(c.env.DB, publicId);
-  if (!machine || machine.enabled !== 1) {
-    return c.redirect(`/m?error=${encodeURIComponent("机台不可用")}`, 302);
+  try {
+    const session = await createMachineSession(c, c.req.param("publicId"));
+    return c.redirect(`/m?ticket=${encodeURIComponent(session.ticket)}`, 302);
+  } catch (error) {
+    if (error instanceof HTTPException && error.status === 404) {
+      return c.redirect(`/m?error=${encodeURIComponent("机台不可用")}`, 302);
+    }
+    throw error;
   }
-  const ticket = randomToken(24);
-  await c.env.RATE_LIMIT.put(`ticket:${ticket}`, publicId, { expirationTtl: 300 });
-  await c.env.RATE_LIMIT.put(`ticket:${publicId}:${ticket}`, "1", { expirationTtl: 300 });
-  return c.redirect(`/m?ticket=${encodeURIComponent(ticket)}`, 302);
+});
+
+app.post("/api/machines/session/start", async (c) => {
+  const minute = Math.floor(Date.now() / 60_000);
+  await enforceRateLimits(c, [
+    {
+      key: `machine-session:start:${clientIp(c.req.raw)}:${minute}`,
+      limit: 60,
+      windowSeconds: 90,
+    },
+  ]);
+  const body = machineSessionStartSchema.parse(await c.req.json());
+  const session = await createMachineSession(c, body.publicId);
+  return c.json({
+    ticket: session.ticket,
+    expiresIn: session.expiresIn,
+    machine: publicMachine(session.machine),
+  });
 });
 
 async function handleMachineSession(c: Context<AppBindings>, routePublicId?: string) {
-  const param = routePublicId || "";
-  const ticket = c.req.query("ticket") || param;
-  if (!ticket) jsonError(403, "本次会话已失效");
-
-  let publicId = await c.env.RATE_LIMIT.get(`ticket:${ticket}`);
-  if (!publicId && param) {
-    if (await c.env.RATE_LIMIT.get(`ticket:${param}:${ticket}`)) {
-      publicId = param;
-    }
-  }
-  if (!publicId) jsonError(403, "本次会话已失效");
-
-  const machine = await getMachineByPublicId(c.env.DB, publicId);
-  if (!machine || machine.enabled !== 1) jsonError(404, "机台不可用");
-  return c.json({
-    machine: {
-      name: machine.name,
-      shop: {
-        name: machine.shop_name,
-        radiusMeters: machine.radius_meters,
-      },
-    },
-  });
+  const ticket = c.req.query("ticket") || routePublicId || "";
+  const session = await resolveMachineSession(c, ticket, routePublicId);
+  return c.json({ machine: publicMachine(session.machine) });
 }
 
 app.get("/api/machines/session", async (c) => handleMachineSession(c));
@@ -355,19 +399,9 @@ async function handleMachineLogin(c: Context<AppBindings>, routePublicId?: strin
   const user = requireUser(c);
   const body = machineLoginSchema.parse(await c.req.json());
 
-  let publicId = await c.env.RATE_LIMIT.get(`ticket:${body.ticket}`);
-  if (!publicId && routePublicId) {
-    if (await c.env.RATE_LIMIT.get(`ticket:${routePublicId}:${body.ticket}`)) {
-      publicId = routePublicId;
-    }
-  }
-  if (!publicId) {
-    jsonError(403, "本次会话已失效");
-  }
+  const { publicId, machine } = await resolveMachineSession(c, body.ticket, routePublicId);
 
   const ip = clientIp(c.req.raw);
-  const machine = await getMachineByPublicId(c.env.DB, publicId);
-  if (!machine || machine.enabled !== 1) jsonError(404, "机台不可用");
 
   const card = await c.env.DB.prepare(
     "SELECT id, access_code FROM cards WHERE id = ? AND user_id = ? AND disabled_at IS NULL",

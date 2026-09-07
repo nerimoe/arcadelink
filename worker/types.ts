@@ -4,6 +4,7 @@ export type Env = Cloudflare.Env & {
   URL_ENCRYPTION_KEY: string;
   MUNET_CLIENT_ID: string;
   MUNET_CLIENT_SECRET: string;
+  APPLE_TEAM_ID: string;
   EXTRA_ALLOWED_ORIGINS?: string;
 };
 

@@ -47,6 +47,14 @@ export const machineLoginSchema = z.object({
   clientTimestamp: z.string().optional(),
 });
 
+export const machineSessionStartSchema = z.object({
+  publicId: z.string().trim().min(1, "缺少机台编号").max(80, "机台编号无效"),
+});
+
+export const appClipAuthExchangeSchema = z.object({
+  code: z.string().trim().min(1, "缺少授权码").max(160, "授权码无效"),
+});
+
 export const setUserRoleSchema = z.object({
   userId: z.string().min(1),
   role: z.enum(["user", "admin"]),

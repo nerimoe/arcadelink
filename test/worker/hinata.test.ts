@@ -5,7 +5,7 @@ import { sendHinataCard } from "../../worker/hinata";
 describe("HINATA sender", () => {
   it("posts aime card payload to the target URL", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(fetchMock as unknown as typeof fetch);
 
     await expect(sendHinataCard("https://aime-ws.neri.moe/instance", "12345678901234567890")).resolves.toMatchObject({
       ok: true,
@@ -18,7 +18,7 @@ describe("HINATA sender", () => {
         body: JSON.stringify({ type: "aime", value: "12345678901234567890" }),
       }),
     );
-    vi.unstubAllGlobals();
+    fetchSpy.mockRestore();
   });
 
   it("posts encrypted E2EE_V2 payload when password is provided", async () => {
@@ -27,7 +27,7 @@ describe("HINATA sender", () => {
       capturedBody = init?.body as string;
       return new Response(null, { status: 204 });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(fetchMock as unknown as typeof fetch);
 
     await expect(
       sendHinataCard("https://aime-ws.neri.moe/instance", "12345678901234567890", "my-secret-pass"),
@@ -44,12 +44,12 @@ describe("HINATA sender", () => {
       body: { type: "aime", value: "12345678901234567890", disposable: true },
     });
 
-    vi.unstubAllGlobals();
+    fetchSpy.mockRestore();
   });
 
   it("normalizes wss/ws schemes, trailing slashes, and whitespace", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(fetchMock as unknown as typeof fetch);
 
     await sendHinataCard("  wss://aime-ws.neri.moe/QOr59IMwymSWu6DL8FdVBekq/  ", "12345678901234567890");
     expect(fetchMock).toHaveBeenCalledWith(
@@ -62,12 +62,12 @@ describe("HINATA sender", () => {
       "http://example.com/channel",
       expect.anything(),
     );
-    vi.unstubAllGlobals();
+    fetchSpy.mockRestore();
   });
 
   it("returns helpful message when remote machine is not connected (404)", async () => {
     const fetchMock = vi.fn(async () => new Response("No active client connected", { status: 404 }));
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(fetchMock as unknown as typeof fetch);
 
     const result = await sendHinataCard("https://aime-ws.neri.moe/instance", "12345678901234567890");
     expect(result).toEqual({
@@ -75,6 +75,6 @@ describe("HINATA sender", () => {
       status: 404,
       error: "机台未在线或连接地址不正确",
     });
-    vi.unstubAllGlobals();
+    fetchSpy.mockRestore();
   });
 });
