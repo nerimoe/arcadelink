@@ -23,7 +23,7 @@ export type Card = {
 };
 
 export type PublicMachine = {
-  publicId: string;
+  publicId?: string;
   name: string;
   shop: {
     name: string;
@@ -151,15 +151,29 @@ export const Api = {
   createCard: (label: string, accessCode: string) =>
     api<{ card: Card }>("/api/cards", { method: "POST", body: JSON.stringify({ label, accessCode }) }),
   deleteCard: (id: string) => api<{ ok: true }>(`/api/cards/${id}`, { method: "DELETE" }),
-  publicMachine: (publicId: string, ticket?: string) =>
-    api<{ machine: PublicMachine }>(
-      `/api/machines/${publicId}${ticket ? `?ticket=${encodeURIComponent(ticket)}` : ""}`,
-    ),
+  publicMachine: (ticketOrPublicId: string, ticket?: string) => {
+    const url = ticket
+      ? `/api/machines/${encodeURIComponent(ticketOrPublicId)}?ticket=${encodeURIComponent(ticket)}`
+      : `/api/machines/session?ticket=${encodeURIComponent(ticketOrPublicId)}`;
+    return api<{ machine: PublicMachine }>(url);
+  },
   loginMachine: (
-    publicId: string,
-    input: { cardId: string; lat: number; lng: number; accuracy: number; ticket: string },
-  ) =>
-    api<{ ok: true }>(`/api/machines/${publicId}/login`, { method: "POST", body: JSON.stringify(input) }),
+    inputOrPublicId:
+      | { cardId: string; lat: number; lng: number; accuracy: number; ticket: string }
+      | string,
+    legacyInput?: { cardId: string; lat: number; lng: number; accuracy: number; ticket: string },
+  ) => {
+    if (typeof inputOrPublicId === "string" && legacyInput) {
+      return api<{ ok: true }>(`/api/machines/${encodeURIComponent(inputOrPublicId)}/login`, {
+        method: "POST",
+        body: JSON.stringify(legacyInput),
+      });
+    }
+    return api<{ ok: true }>("/api/machines/login", {
+      method: "POST",
+      body: JSON.stringify(inputOrPublicId),
+    });
+  },
   shops: () => api<{ shops: Shop[] }>("/api/merchant/shops"),
   createShop: (input: { name: string; latitude: number; longitude: number; radiusMeters: number }) =>
     api<{ shop: Shop }>("/api/merchant/shops", { method: "POST", body: JSON.stringify(input) }),

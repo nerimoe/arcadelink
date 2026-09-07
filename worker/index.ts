@@ -314,24 +314,31 @@ app.get("/t/:publicId", async (c) => {
   const publicId = c.req.param("publicId");
   const machine = await getMachineByPublicId(c.env.DB, publicId);
   if (!machine || machine.enabled !== 1) {
-    return c.redirect(`/m/${encodeURIComponent(publicId)}?error=${encodeURIComponent("机台不可用")}`, 302);
+    return c.redirect(`/m?error=${encodeURIComponent("机台不可用")}`, 302);
   }
   const ticket = randomToken(24);
+  await c.env.RATE_LIMIT.put(`ticket:${ticket}`, publicId, { expirationTtl: 300 });
   await c.env.RATE_LIMIT.put(`ticket:${publicId}:${ticket}`, "1", { expirationTtl: 300 });
-  return c.redirect(`/m/${encodeURIComponent(publicId)}?ticket=${encodeURIComponent(ticket)}`, 302);
+  return c.redirect(`/m?ticket=${encodeURIComponent(ticket)}`, 302);
 });
 
-app.get("/api/machines/:publicId", async (c) => {
-  const publicId = c.req.param("publicId");
-  const ticket = c.req.query("ticket");
-  if (!ticket || !(await c.env.RATE_LIMIT.get(`ticket:${publicId}:${ticket}`))) {
-    jsonError(403, "本次会话已失效");
+async function handleMachineSession(c: Context<AppBindings>, routePublicId?: string) {
+  const param = routePublicId || "";
+  const ticket = c.req.query("ticket") || param;
+  if (!ticket) jsonError(403, "本次会话已失效");
+
+  let publicId = await c.env.RATE_LIMIT.get(`ticket:${ticket}`);
+  if (!publicId && param) {
+    if (await c.env.RATE_LIMIT.get(`ticket:${param}:${ticket}`)) {
+      publicId = param;
+    }
   }
+  if (!publicId) jsonError(403, "本次会话已失效");
+
   const machine = await getMachineByPublicId(c.env.DB, publicId);
   if (!machine || machine.enabled !== 1) jsonError(404, "机台不可用");
   return c.json({
     machine: {
-      publicId: machine.public_id,
       name: machine.name,
       shop: {
         name: machine.shop_name,
@@ -339,14 +346,22 @@ app.get("/api/machines/:publicId", async (c) => {
       },
     },
   });
-});
+}
 
-app.post("/api/machines/:publicId/login", async (c) => {
+app.get("/api/machines/session", async (c) => handleMachineSession(c));
+app.get("/api/machines/:publicId", async (c) => handleMachineSession(c, c.req.param("publicId")));
+
+async function handleMachineLogin(c: Context<AppBindings>, routePublicId?: string) {
   const user = requireUser(c);
   const body = machineLoginSchema.parse(await c.req.json());
-  const publicId = c.req.param("publicId");
-  const ticketKey = `ticket:${publicId}:${body.ticket}`;
-  if (!(await c.env.RATE_LIMIT.get(ticketKey))) {
+
+  let publicId = await c.env.RATE_LIMIT.get(`ticket:${body.ticket}`);
+  if (!publicId && routePublicId) {
+    if (await c.env.RATE_LIMIT.get(`ticket:${routePublicId}:${body.ticket}`)) {
+      publicId = routePublicId;
+    }
+  }
+  if (!publicId) {
     jsonError(403, "本次会话已失效");
   }
 
@@ -392,7 +407,7 @@ app.post("/api/machines/:publicId/login", async (c) => {
       responseCode: null,
       errorMessage: location.reason,
     });
-    jsonError(403, "超出店内允许距离");
+    jsonError(403, "请到店再进行登录");
   }
 
   const targetUrl = await decryptSecret(machine.hinata_url_encrypted, c.env.URL_ENCRYPTION_KEY);
@@ -416,12 +431,16 @@ app.post("/api/machines/:publicId/login", async (c) => {
   });
 
   if (result.ok) {
-    await c.env.RATE_LIMIT.delete(ticketKey);
+    await c.env.RATE_LIMIT.delete(`ticket:${body.ticket}`);
+    await c.env.RATE_LIMIT.delete(`ticket:${publicId}:${body.ticket}`);
   }
 
   if (!result.ok) jsonError(502, "机台暂时不可用");
   return c.json({ ok: true });
-});
+}
+
+app.post("/api/machines/login", async (c) => handleMachineLogin(c));
+app.post("/api/machines/:publicId/login", async (c) => handleMachineLogin(c, c.req.param("publicId")));
 
 app.get("/api/merchant/shops", async (c) => {
   const user = requireUser(c);

@@ -57,7 +57,8 @@ function Shell() {
             <Route path="/merchant" element={<MerchantPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/m/:publicId" element={<MachineLoginPage />} />
+            <Route path="/m" element={<MachineLoginPage />} />
+            <Route path="/m/:ticket" element={<MachineLoginPage />} />
           </Routes>
         </Suspense>
       </main>

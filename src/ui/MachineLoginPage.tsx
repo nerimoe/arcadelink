@@ -7,9 +7,9 @@ import { passkeyErrorMessage } from "../passkeys";
 import { useAuth } from "./AuthContext";
 
 export function MachineLoginPage() {
-  const { publicId = "" } = useParams();
+  const { ticket: paramTicket = "", publicId = "" } = useParams();
   const [searchParams] = useSearchParams();
-  const ticket = searchParams.get("ticket") || "";
+  const ticket = searchParams.get("ticket") || paramTicket || publicId;
   const queryError = searchParams.get("error");
   const { user, loading, refresh } = useAuth();
   const [machine, setMachine] = useState<PublicMachine | null>(null);
@@ -30,10 +30,10 @@ export function MachineLoginPage() {
       setError("本次会话已失效");
       return;
     }
-    Api.publicMachine(publicId, ticket)
+    Api.publicMachine(ticket)
       .then((result) => setMachine(result.machine))
-      .catch(() => setError("机台暂时不可用"));
-  }, [publicId, ticket, queryError]);
+      .catch(() => setError("机台不可用"));
+  }, [ticket, queryError]);
 
   useEffect(() => {
     if (!user) return;
@@ -71,14 +71,14 @@ export function MachineLoginPage() {
     try {
       const position = await getPosition();
       setStatus("sending");
-      await Api.loginMachine(publicId, {
+      await Api.loginMachine({
         cardId,
         lat: position.coords.latitude,
         lng: position.coords.longitude,
         accuracy: position.coords.accuracy,
         ticket,
       });
-      window.history.replaceState(null, "", `/m/${publicId}?expired=1`);
+      window.history.replaceState(null, "", "/m?expired=1");
       setCountdown(3);
       setStatus("sent");
     } catch (caught) {
@@ -140,7 +140,7 @@ export function MachineLoginPage() {
     );
   }
 
-  const munetNext = `/m/${publicId}${ticket ? `?ticket=${encodeURIComponent(ticket)}` : ""}`;
+  const munetNext = ticket ? `/m?ticket=${encodeURIComponent(ticket)}` : "/m";
 
   return (
     <section className="mx-auto max-w-lg py-3">
@@ -295,8 +295,8 @@ function friendlyLoginError(err: unknown): string {
     const msg = err.message;
     if (msg === "geo_denied") return "需要定位权限";
     if (msg === "geo_unsupported" || msg === "geo_failed") return "定位获取失败";
-    if (msg.includes("店内") || msg.includes("距离") || msg.includes("位置确认失败")) {
-      return "超出店内允许距离";
+    if (msg.includes("店内") || msg.includes("距离") || msg.includes("到店") || msg.includes("位置确认失败")) {
+      return "请到店再进行登录";
     }
     if (msg.includes("会话已失效") || msg.includes("缺少会话凭证")) {
       return "本次会话已失效";
