@@ -15,11 +15,15 @@ export type MachineSession = {
 
 export async function createMachineSession(
   c: Context<AppBindings>,
+  shopId: string,
   publicId: string,
 ): Promise<MachineSession> {
+  const normalizedShopId = shopId.trim();
   const normalizedPublicId = publicId.trim();
   const machine = await getMachineByPublicId(c.env.DB, normalizedPublicId);
-  if (!machine || machine.enabled !== 1) jsonError(404, "机台不可用");
+  if (!machine || machine.enabled !== 1 || machine.shop_id !== normalizedShopId) {
+    jsonError(404, "机台不可用");
+  }
 
   const ticket = randomToken(24);
   await c.env.RATE_LIMIT.put(`ticket:${ticket}`, machine.public_id, {

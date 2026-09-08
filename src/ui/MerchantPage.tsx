@@ -499,7 +499,7 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
 }
 
 function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () => void | Promise<void> }) {
-  const url = `${window.location.origin}/t/${machine.publicId}`;
+  const url = `${window.location.origin}/t/${encodeURIComponent(machine.shopId)}/${encodeURIComponent(machine.publicId)}`;
   const hasPassword = Boolean(machine.hasPassword);
   const [name, setName] = useState(machine.name);
   const [hinataUrl, setHinataUrl] = useState("");

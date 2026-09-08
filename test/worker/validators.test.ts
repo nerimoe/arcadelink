@@ -65,11 +65,16 @@ describe("machineLoginSchema", () => {
 
 describe("machineSessionStartSchema", () => {
   it("trims a public machine id", () => {
-    expect(machineSessionStartSchema.parse({ publicId: "  L9W3HD2P  " })).toEqual({ publicId: "L9W3HD2P" });
+    expect(
+      machineSessionStartSchema.parse({
+        shopId: "  shop-123  ",
+        publicId: "  L9W3HD2P  ",
+      }),
+    ).toEqual({ shopId: "shop-123", publicId: "L9W3HD2P" });
   });
 
   it("rejects a missing public machine id", () => {
-    expect(() => machineSessionStartSchema.parse({ publicId: "" })).toThrow("缺少机台编号");
+    expect(() => machineSessionStartSchema.parse({ shopId: "shop-123", publicId: "" })).toThrow("缺少机台编号");
   });
 });
 

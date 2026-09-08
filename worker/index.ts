@@ -368,9 +368,9 @@ app.delete("/api/cards/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-app.get("/t/:publicId", async (c) => {
+app.get("/t/:shopId/:publicId", async (c) => {
   try {
-    const session = await createMachineSession(c, c.req.param("publicId"));
+    const session = await createMachineSession(c, c.req.param("shopId"), c.req.param("publicId"));
     return c.redirect(`/m?ticket=${encodeURIComponent(session.ticket)}`, 302);
   } catch (error) {
     if (error instanceof HTTPException && error.status === 404) {
@@ -390,7 +390,7 @@ app.post("/api/machines/session/start", async (c) => {
     },
   ]);
   const body = machineSessionStartSchema.parse(await c.req.json());
-  const session = await createMachineSession(c, body.publicId);
+  const session = await createMachineSession(c, body.shopId, body.publicId);
   return c.json({
     ticket: session.ticket,
     expiresIn: session.expiresIn,
