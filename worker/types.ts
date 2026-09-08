@@ -6,6 +6,7 @@ export type Env = Cloudflare.Env & {
   MUNET_CLIENT_SECRET: string;
   APPLE_TEAM_ID: string;
   EXTRA_ALLOWED_ORIGINS?: string;
+  ANDROID_CERT_FINGERPRINTS?: string;
 };
 
 export type Variables = {

@@ -10,6 +10,7 @@ import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { randomToken } from "./crypto";
 import { jsonError, nowIso } from "./http";
+import { androidPasskeyOrigins } from "./apple";
 import type { AppBindings, AuthUser } from "./types";
 
 const challengeCookie = "arcadelink_passkey_challenge";
@@ -121,7 +122,7 @@ export async function finishAuthentication(
   const verification = await verifyAuthenticationResponse({
     response,
     expectedChallenge: challenge,
-    expectedOrigin: rp(c).origin,
+    expectedOrigin: authenticationOrigins(c),
     expectedRPID: rp(c).id,
     credential: {
       id: passkey.id,
@@ -136,6 +137,11 @@ export async function finishAuthentication(
     .bind(verification.authenticationInfo.newCounter, passkey.id)
     .run();
   return passkey.user_id;
+}
+
+function authenticationOrigins(c: Context<AppBindings>): string | string[] {
+  const origins = [rp(c).origin, ...androidPasskeyOrigins(c.env.ANDROID_CERT_FINGERPRINTS)];
+  return origins.length === 1 ? origins[0] ?? rp(c).origin : origins;
 }
 
 async function saveChallenge(

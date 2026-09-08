@@ -14,6 +14,7 @@ const appOrigin = readConfigValue("ARCADELINK_APP_ORIGIN", "http://localhost:517
 const munetClientId = readConfigValue("ARCADELINK_MUNET_CLIENT_ID", "local-munet-client");
 const extraAllowedOrigins = readConfigValue("ARCADELINK_EXTRA_ALLOWED_ORIGINS", "http://localhost:5173");
 const appleTeamId = readConfigValue("ARCADELINK_APPLE_TEAM_ID", "XKKMJBTHX5");
+const androidCertFingerprints = readOptional("ARCADELINK_ANDROID_CERT_FINGERPRINTS") ?? "";
 
 const databaseName = readConfigValue("ARCADELINK_D1_DATABASE_NAME", "arcadelink");
 const databaseId =
@@ -84,6 +85,7 @@ const config = {
     MUNET_CLIENT_ID: munetClientId,
     EXTRA_ALLOWED_ORIGINS: extraAllowedOrigins,
     APPLE_TEAM_ID: appleTeamId,
+    ANDROID_CERT_FINGERPRINTS: androidCertFingerprints,
   },
 };
 

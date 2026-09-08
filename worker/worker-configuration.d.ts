@@ -9,6 +9,7 @@ declare namespace Cloudflare {
 		RATE_LIMIT: KVNamespace;
 		DB: D1Database;
 		APP_ORIGIN: string;
+		ANDROID_CERT_FINGERPRINTS?: string;
 		MUNET_CLIENT_ID: string;
 		EXTRA_ALLOWED_ORIGINS: string;
 	}

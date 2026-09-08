@@ -36,6 +36,15 @@ The Wrangler configuration is generated from environment variables. The followin
 - `ARCADELINK_D1_DATABASE_ID`
 - `ARCADELINK_KV_RATE_LIMIT_ID`
 
+For Android native Passkey login, also set the optional
+`ARCADELINK_ANDROID_CERT_FINGERPRINTS` build variable to the SHA-256 signing
+certificate fingerprints used by installed builds, separated by commas. Include
+the Google Play App Signing certificate and, if APKs are distributed directly,
+the APK upload/release certificate. The Worker publishes these fingerprints at
+`/.well-known/assetlinks.json` and accepts the corresponding Android WebAuthn
+origins; leaving the variable empty makes the Worker reject Android assertions
+until the production certificate is configured.
+
 `ARCADELINK_D1_PREVIEW_DATABASE_ID` is optional. `ARCADELINK_D1_DATABASE_ID` may be omitted only with `--local`, which uses Wrangler's zero UUID for the local D1 emulator. These build variables are used to generate `wrangler.generated.jsonc`; they are not Worker runtime variables.
 
 Set these Worker secrets in Cloudflare:
@@ -45,12 +54,11 @@ Set these Worker secrets in Cloudflare:
 - `TURNSTILE_SECRET_KEY`
 - `MUNET_CLIENT_SECRET`
 
-MuNET must allow both browser and native callbacks:
+MuNET uses one registered callback for both browser and native login:
 
 - `https://link.neri.moe/callback`
-- `https://link.neri.moe/api/appclip/auth/callback`
 
-The App Clip exchanges the native callback code at `/api/appclip/auth/exchange`; provider access and refresh tokens never pass through the App Clip URL.
+Native login uses a prefixed, server-stored, single-use state to route `/callback` to the App Clip flow; the prefix alone never authorizes a login. The legacy `/api/appclip/auth/callback` remains supported for requests already in flight, but does not need to be registered for new logins. The App Clip exchanges its short-lived code at `/api/appclip/auth/exchange`; provider access and refresh tokens never pass through the App Clip URL.
 
 Production deploys one Worker with Workers Assets:
 

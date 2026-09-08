@@ -183,7 +183,7 @@ export function MachineLoginPage() {
         ) : (
           <div className="mt-8 grid gap-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-ink/70">点击卡片直接登录：</p>
+              <p className="text-sm font-medium text-ink/70">选择卡片</p>
               <Link to="/cards" className="text-xs text-mint hover:underline">
                 管理卡片
               </Link>
@@ -270,7 +270,7 @@ export function MachineLoginPage() {
                         ) : (
                           <span className="focus-ring inline-flex items-center gap-1 rounded bg-ink px-3.5 py-1.5 text-xs font-semibold text-canvas">
                             <CreditCard size={14} />
-                            点击登录
+                            登录
                           </span>
                         )}
                       </div>

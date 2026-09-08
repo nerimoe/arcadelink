@@ -12,7 +12,7 @@ import { checkLocation, clampShopRadius } from "./geo";
 import { allowedOrigins, assertAllowedOrigin, clientIp, jsonError } from "./http";
 import { assertNotBanned, enforceRateLimits, loginRateLimitRules } from "./risk";
 import { sendHinataCard } from "./hinata";
-import { appleAppSiteAssociationResponse } from "./apple";
+import { androidAssetLinksResponse, appleAppSiteAssociationResponse } from "./apple";
 import { createMachineSession, publicMachine, resolveMachineSession } from "./machine-session";
 import { finishMunetAuth, munetAuthorizeUrl } from "./munet";
 import {
@@ -76,6 +76,10 @@ app.get("/api/health", (c) => c.json({ ok: true }));
 
 app.get("/.well-known/apple-app-site-association", (c) => {
   return appleAppSiteAssociationResponse(c.env.APPLE_TEAM_ID);
+});
+
+app.get("/.well-known/assetlinks.json", (c) => {
+  return androidAssetLinksResponse(c.env.ANDROID_CERT_FINGERPRINTS);
 });
 
 app.get("/api/me", async (c) => {
@@ -187,18 +191,21 @@ app.get("/api/appclip/auth/start", async (c) => {
       windowSeconds: 90,
     },
   ]);
-  const state = randomToken(24);
+  const state = `appclip.${randomToken(24)}`;
   await createAppClipAuthState(c, state);
   return c.redirect(
     munetAuthorizeUrl(
       c.env.MUNET_CLIENT_ID,
-      `${c.env.APP_ORIGIN}/api/appclip/auth/callback`,
+      `${c.env.APP_ORIGIN}/callback`,
       state,
     ),
   );
 });
 
-app.get("/api/appclip/auth/callback", async (c) => {
+// Keep the legacy callback for authorizations already in flight.
+app.get("/api/appclip/auth/callback", (c) => finishAppClipCallback(c, "/api/appclip/auth/callback"));
+
+async function finishAppClipCallback(c: Context<AppBindings>, redirectPath: string) {
   const callback = (params: Record<string, string>) =>
     c.redirect(appClipAuthCallbackURLWithParams(params));
   const state = c.req.query("state");
@@ -213,7 +220,7 @@ app.get("/api/appclip/auth/callback", async (c) => {
       clientId: c.env.MUNET_CLIENT_ID,
       clientSecret: c.env.MUNET_CLIENT_SECRET,
       code,
-      redirectUri: `${c.env.APP_ORIGIN}/api/appclip/auth/callback`,
+      redirectUri: `${c.env.APP_ORIGIN}${redirectPath}`,
     });
     const { userId } = await provisionMunetUser(c, munet);
     const exchangeCode = await createAppClipAuthCode(c, userId);
@@ -229,7 +236,7 @@ app.get("/api/appclip/auth/callback", async (c) => {
             : "MuNET 登录失败",
     });
   }
-});
+}
 
 app.post("/api/appclip/auth/exchange", async (c) => {
   const minute = Math.floor(Date.now() / 60_000);
@@ -247,6 +254,11 @@ app.post("/api/appclip/auth/exchange", async (c) => {
 });
 
 app.get("/callback", async (c) => {
+  // The prefix only selects the flow; the native handler must atomically
+  // consume a live server-issued state before exchanging any OAuth code.
+  if (c.req.query("state")?.startsWith("appclip.")) {
+    return finishAppClipCallback(c, "/callback");
+  }
   const next = safePath(getCookie(c, oauthNextCookie));
   const fail = (message: string) => c.redirect(`/login?error=${encodeURIComponent(message)}&next=${encodeURIComponent(next)}`);
   const expectedState = getCookie(c, oauthStateCookie);
