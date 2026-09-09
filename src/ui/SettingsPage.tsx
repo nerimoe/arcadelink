@@ -53,14 +53,15 @@ export function SettingsPage() {
       <section className="mx-auto grid max-w-2xl gap-6">
         <div>
           <h1 className="text-2xl font-semibold">账号设置</h1>
+          <p className="mt-3 text-ink/65">管理登录身份与设备上的 Passkey。</p>
           {error && <p className="mt-4 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
         </div>
 
         <section className="rounded border border-ink/10 bg-panel p-5">
           <h2 className="flex items-center gap-2 font-semibold"><KeyRound size={18} />登录身份</h2>
-          <div className="mt-4 grid gap-2">
+          <div className="mt-5 divide-y divide-ink/10">
             {identities.map((identity) => (
-              <div key={identity.id} className="rounded border border-ink/10 bg-surface p-3">
+              <div key={identity.id} className="py-4">
                 <p className="font-medium">{identity.provider === "munet" ? "MuNET" : identity.provider}</p>
                 <p className="mt-1 text-sm text-ink/60">{identity.displayName || identity.username || "已连接"}</p>
               </div>
@@ -82,9 +83,9 @@ export function SettingsPage() {
               </button>
             )}
           </div>
-          <div className="mt-4 grid gap-2">
+          <div className="mt-5 divide-y divide-ink/10">
             {passkeys.map((passkey) => (
-              <div key={passkey.id} className="flex items-center justify-between gap-3 rounded border border-ink/10 bg-surface p-3">
+              <div key={passkey.id} className="flex min-h-20 items-center justify-between gap-3 py-4">
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{passkey.name}</p>
                   <p className="mt-1 text-sm text-ink/60">

@@ -10,10 +10,11 @@ export const createCardSchema = z.object({
 
 export const createShopSchema = z.object({
   name: z.string().trim().min(1, "请输入店铺名称").max(80, "店铺名称最多80个字符"),
-  logoData: z
+  heroData: z
     .string()
-    .max(700_000, "店铺 Logo 不能超过 512 KB")
-    .regex(/^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/]+={0,2}$/, "Logo 只支持 PNG、JPG 或 WebP 图片")
+    .max(700_000, "店铺封面 不能超过 512 KB")
+    .regex(/^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/]+={0,2}$/, "封面只支持 PNG、JPG 或 WebP 图片")
+    .nullable()
     .optional(),
   latitude: z.number().gte(-90, "纬度不正确").lte(90, "纬度不正确"),
   longitude: z.number().gte(-180, "经度不正确").lte(180, "经度不正确"),

@@ -62,12 +62,17 @@ export function CardsPage() {
 
   return (
     <RequireLogin>
-      <section className="grid gap-6 md:grid-cols-[360px_1fr]">
-        <form onSubmit={create} className="rounded border border-ink/10 bg-panel p-5 shadow-soft">
-          <h1 className="flex items-center gap-2 text-xl font-semibold">
+      <div className="grid gap-8">
+        <header>
+          <h1 className="font-semibold">我的卡片</h1>
+          <p className="mt-3 text-ink/65">管理用于机台登录的卡片与 MuNET 同步。</p>
+        </header>
+      <section className="grid items-start gap-6 md:grid-cols-[1fr_360px]">
+        <form onSubmit={create} className="order-2 rounded border border-ink/10 bg-panel p-5 shadow-soft">
+          <h2 className="flex items-center gap-2 text-xl font-semibold">
             <CreditCard size={22} />
-            我的卡片
-          </h1>
+            添加卡片
+          </h2>
           <div className="mt-5 grid gap-4">
             <label className="grid gap-2 text-sm font-medium">
               显示名称
@@ -129,15 +134,15 @@ export function CardsPage() {
             )}
           </div>
         </form>
-        <div className="grid content-start gap-3">
+        <div className="order-1 overflow-hidden rounded-[28px] bg-panel">
           {cards.length === 0 ? (
             <div className="rounded border border-dashed border-ink/20 bg-surface p-6 text-ink/60">还没有添加卡片。</div>
           ) : (
             cards.map((card) => (
-              <div key={card.id} className="flex items-center justify-between gap-4 rounded border border-ink/10 bg-surface p-4">
+              <div key={card.id} className="flex min-h-24 items-center justify-between gap-4 border-b border-ink/10 px-6 py-5 last:border-b-0">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold">{card.label}</p>
+                    <p className="text-xl font-semibold">{card.label}</p>
                     <span className="rounded bg-ink/5 px-2 py-0.5 text-xs text-ink/60">
                       {card.source === "munet" ? "来自 MuNET 账号同步" : "手动添加"}
                     </span>
@@ -157,6 +162,7 @@ export function CardsPage() {
           )}
         </div>
       </section>
+      </div>
     </RequireLogin>
   );
 }

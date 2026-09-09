@@ -27,7 +27,7 @@ export type PublicMachine = {
   name: string;
   shop: {
     name: string;
-    logoUrl?: string | null;
+    heroUrl?: string | null;
     latitude: number;
     longitude: number;
     radiusMeters: number;
@@ -44,7 +44,7 @@ export type Shop = {
   id: string;
   publicId: string;
   name: string;
-  logoUrl?: string | null;
+  heroUrl?: string | null;
   latitude: number;
   longitude: number;
   radius_meters?: number;
@@ -192,11 +192,11 @@ export const Api = {
     });
   },
   shops: () => api<{ shops: Shop[] }>("/api/merchant/shops"),
-  createShop: (input: { name: string; logoData?: string; latitude: number; longitude: number; radiusMeters: number }) =>
+  createShop: (input: { name: string; heroData?: string | null; latitude: number; longitude: number; radiusMeters: number }) =>
     api<{ shop: Shop }>("/api/merchant/shops", { method: "POST", body: JSON.stringify(input) }),
   updateShop: (
     id: string,
-    input: { name?: string; logoData?: string; latitude?: number; longitude?: number; radiusMeters?: number },
+    input: { name?: string; heroData?: string | null; latitude?: number; longitude?: number; radiusMeters?: number },
   ) =>
     api<{ shop: Shop }>(`/api/merchant/shops/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   deleteShop: (id: string) => api<{ ok: true }>(`/api/merchant/shops/${id}`, { method: "DELETE" }),

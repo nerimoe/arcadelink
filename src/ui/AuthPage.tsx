@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Fingerprint } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
 import { Api } from "../api";
 import { passkeyErrorMessage } from "../passkeys";
@@ -12,6 +12,7 @@ export function AuthPage() {
   const { refresh } = useAuth();
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [munetBusy, setMunetBusy] = useState(false);
   const error = passkeyError || new URLSearchParams(location.search).get("error");
   const redirectTo = new URLSearchParams(location.search).get("next") || "/cards";
 
@@ -31,27 +32,24 @@ export function AuthPage() {
   };
 
   return (
-    <section className="mx-auto max-w-md py-8">
-      <div className="rounded border border-ink/10 bg-panel p-6 shadow-soft">
-        <h1 className="text-2xl font-semibold">登录 ArcadeLink</h1>
-        {error && <p className="mt-5 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
-        <a
-          className="focus-ring mt-6 flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-canvas"
-          href={`/api/auth/munet?next=${encodeURIComponent(redirectTo)}`}
-        >
-          <img src="/munet-logo.png" alt="" className="size-5 object-contain" />
-          使用 MuNET 继续
-        </a>
-        {browserSupportsWebAuthn() && (
-          <button
-            className="focus-ring mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded border border-ink/15 bg-surface px-4 font-semibold text-ink disabled:opacity-60"
-            disabled={busy}
-            onClick={loginWithPasskey}
-          >
-            <Fingerprint size={18} />
-            使用 Passkey 登录
-          </button>
-        )}
+    <section className="mx-auto max-w-[480px] py-10 sm:py-20">
+      <div className="session-task !mt-0">
+        <h1>登录 ArcadeLink</h1>
+        <p className="session-subtitle">连接账号，随时管理你的卡片</p>
+        {error && <p role="alert" className="session-error">{error}</p>}
+      </div>
+      <div className="session-actions">
+        <button className="session-action primary" disabled={busy || munetBusy} onClick={() => {
+          setMunetBusy(true);
+          window.location.assign(`/api/auth/munet?next=${encodeURIComponent(redirectTo)}`);
+        }}>
+          {munetBusy && <Loader2 size={20} className="animate-spin" />}
+          {munetBusy ? "正在连接 MuNET…" : "使用 MuNET 登录"}
+        </button>
+        <button className="session-action" disabled={busy || munetBusy || !browserSupportsWebAuthn()} onClick={() => void loginWithPasskey()}>
+          {busy && <Loader2 size={20} className="animate-spin" />}
+          {busy ? "正在验证 Passkey…" : "使用 Passkey 登录"}
+        </button>
       </div>
     </section>
   );

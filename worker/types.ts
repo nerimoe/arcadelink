@@ -31,7 +31,7 @@ export type ShopRow = {
   id: string;
   publicId: string;
   name: string;
-  logoUrl: string | null;
+  heroUrl: string | null;
   latitude: number;
   longitude: number;
   radius_meters: number;
@@ -48,7 +48,7 @@ export type MachineRow = {
   hinata_password_encrypted: string | null;
   enabled: number;
   shop_name: string;
-  shop_logo_url: string | null;
+  shop_hero_url: string | null;
   latitude: number;
   longitude: number;
   radius_meters: number;

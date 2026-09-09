@@ -46,8 +46,8 @@ const app = new Hono<AppBindings>();
 const oauthStateCookie = "arcadelink_munet_state";
 const oauthNextCookie = "arcadelink_munet_next";
 
-function shopLogoPath(publicId: string): string {
-  return `/api/shops/${encodeURIComponent(publicId)}/logo`;
+function shopHeroPath(publicId: string): string {
+  return `/api/shops/${encodeURIComponent(publicId)}/hero`;
 }
 
 app.use(
@@ -78,11 +78,11 @@ app.use("*", attachUser);
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
-app.get("/api/shops/:publicId/logo", async (c) => {
-  const row = await c.env.DB.prepare("SELECT logo_data AS logoData FROM shops WHERE public_id = ?")
+app.get("/api/shops/:publicId/hero", async (c) => {
+  const row = await c.env.DB.prepare("SELECT hero_data AS heroData FROM shops WHERE public_id = ?")
     .bind(c.req.param("publicId"))
-    .first<{ logoData: string | null }>();
-  const match = row?.logoData?.match(/^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/]+={0,2})$/);
+    .first<{ heroData: string | null }>();
+  const match = row?.heroData?.match(/^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/]+={0,2})$/);
   if (!match) return new Response(null, { status: 404 });
 
   const mimeType = match[1];
@@ -525,13 +525,13 @@ app.post("/api/merchant/shops", async (c) => {
   const publicId = randomToken(8);
   await c.env.DB.batch([
     c.env.DB.prepare(
-      "INSERT INTO shops (id, public_id, name, logo_data, latitude, longitude, radius_meters, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    ).bind(shopId, publicId, body.name, body.logoData ?? null, body.latitude, body.longitude, clampShopRadius(body.radiusMeters), user.id),
+      "INSERT INTO shops (id, public_id, name, hero_data, latitude, longitude, radius_meters, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    ).bind(shopId, publicId, body.name, body.heroData ?? null, body.latitude, body.longitude, clampShopRadius(body.radiusMeters), user.id),
     c.env.DB.prepare("INSERT INTO shop_members (id, shop_id, user_id, role) VALUES (?, ?, ?, 'owner')")
       .bind(crypto.randomUUID(), shopId, user.id),
   ]);
-  const { logoData, ...shop } = body;
-  return c.json({ shop: { id: shopId, publicId, ...shop, logoUrl: logoData ? shopLogoPath(publicId) : null } }, 201);
+  const { heroData, ...shop } = body;
+  return c.json({ shop: { id: shopId, publicId, ...shop, heroUrl: heroData ? shopHeroPath(publicId) : null } }, 201);
 });
 
 app.patch("/api/merchant/shops/:id", async (c) => {
@@ -554,7 +554,7 @@ app.patch("/api/merchant/shops/:id", async (c) => {
   await c.env.DB.prepare(
     `UPDATE shops
      SET name = COALESCE(?, name),
-         logo_data = COALESCE(?, logo_data),
+         hero_data = CASE WHEN ? THEN ? ELSE hero_data END,
          latitude = COALESCE(?, latitude),
          longitude = COALESCE(?, longitude),
          radius_meters = COALESCE(?, radius_meters),
@@ -563,7 +563,8 @@ app.patch("/api/merchant/shops/:id", async (c) => {
   )
     .bind(
       body.name ?? null,
-      body.logoData ?? null,
+      body.heroData !== undefined ? 1 : 0,
+      body.heroData ?? null,
       body.latitude ?? null,
       body.longitude ?? null,
       radius,
@@ -572,7 +573,7 @@ app.patch("/api/merchant/shops/:id", async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, public_id AS publicId, name, CASE WHEN logo_data IS NULL OR logo_data = '' THEN NULL ELSE '/api/shops/' || public_id || '/logo' END AS logoUrl, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
+    "SELECT id, public_id AS publicId, name, CASE WHEN hero_data IS NULL OR hero_data = '' THEN NULL ELSE '/api/shops/' || public_id || '/hero' END AS heroUrl, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
   )
     .bind(shopId)
     .first();

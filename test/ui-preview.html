@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ArcadeLink 本地 UI 检查</title></head><body><div id="root"></div>
+<script type="module">
+// Local Vite-only visual fixture. No production API requests or real machine actions.
+if (!import.meta.env.DEV) throw new Error('Development preview only');
+const params = new URLSearchParams(location.search);
+const scene = params.get('scene') || 'cards';
+const shop = {id:'shop-demo',publicId:'shopdemo123',name:'月宫',latitude:35,longitude:139,radiusMeters:80,
+  heroUrl: params.has('nohero') ? null : '/test/hero-fixture.svg'};
+const cards = ['红黑卡','蓝白卡','Nimo 卡'].map((label,index)=>({id:String(index),label,accessCode:'1234567890123456'+['6958','0225','3317'][index],source:'manual'}));
+const user = {id:'preview',username:'preview',displayName:'预览用户',role:'admin',hasShops:true};
+const machine = {id:'machine-demo',publicId:'machinedemo',shopId:shop.id,shopPublicId:shop.publicId,name:'舞萌',enabled:true,shop};
+const originalFetch = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const url = new URL(typeof input === 'string' ? input : input.url || input, location.origin);
+  if (!url.pathname.startsWith('/api/')) return originalFetch(input,init);
+  const path = url.pathname;
+  let body = {ok:true};
+  if (path === '/api/me') body = {user:scene === 'auth' ? null : user};
+  else if (path === '/api/machines/session') body = {machine};
+  else if (path === '/api/cards') body = {cards:params.has('empty') ? [] : cards};
+  else if (path === '/api/merchant/shops') body = {shops:[shop]};
+  else if (path === '/api/merchant/machines') body = {machines:[machine]};
+  else if (path === '/api/merchant/shop-members') body = {members:[]};
+  else if (path === '/api/merchant/login-events') body = {events:[]};
+  else if (path === '/api/account') body = {identities:[{id:'munet',provider:'munet',displayName:'预览用户'}],passkeys:[]};
+  else if (path === '/api/admin/users') body = {users:[user]};
+  else if (path.includes('bans')) body = {bans:[]};
+  if (path === '/api/machines/login') {
+    await new Promise(resolve => setTimeout(resolve,1500));
+    if (params.has('error')) return Response.json({error:'机台无响应'},{status:502});
+  }
+  return Response.json(body);
+};
+Object.defineProperty(navigator,'geolocation',{value:{getCurrentPosition(resolve){setTimeout(()=>resolve({coords:{latitude:35,longitude:139,accuracy:10}}),1000)}}});
+history.replaceState(null,'', ['merchant','settings','admin','cards-page','login'].includes(scene) ? '/'+scene.replace('-page','') : '/m?ticket=preview');
+await import('/src/main.tsx');
+</script></body></html>

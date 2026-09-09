@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { Link, Navigate, NavLink, useLocation, Route, Routes } from "react-router-dom";
 import { Gamepad2, IdCard, LogOut, Shield, Store, UserRound } from "lucide-react";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { AuthPage } from "./AuthPage";
@@ -20,23 +20,25 @@ export function App() {
 
 function Shell() {
   const { user, logout } = useAuth();
+  const { pathname } = useLocation();
+  const machineSession = pathname === "/m" || pathname.startsWith("/m/");
   return (
     <div className="min-h-screen bg-canvas text-ink">
-      <header className="sticky top-0 z-20 border-b border-ink/10 bg-panel/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link to="/" className="flex items-center gap-2 text-lg font-semibold tracking-normal">
-            <span className="grid size-9 place-items-center rounded bg-ink text-canvas">
+      {!machineSession && <header className="site-header">
+        <div className="site-header-inner">
+          <Link to="/" className="site-brand focus-ring">
+            <span className="grid size-10 place-items-center rounded-2xl bg-mint text-white">
               <Gamepad2 size={20} />
             </span>
             ArcadeLink
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="site-navigation" aria-label="主导航">
             <NavItem to="/cards" icon={<IdCard size={16} />} label="卡片" />
             {(user?.hasShops || user?.role === "admin") && <NavItem to="/merchant" icon={<Store size={16} />} label="店家" />}
             {user?.role === "admin" && <NavItem to="/admin" icon={<Shield size={16} />} label="管理" />}
             {user && <NavItem to="/settings" icon={<UserRound size={16} />} label="账号" />}
             {user ? (
-              <button onClick={logout} className="focus-ring grid size-10 place-items-center rounded text-ink hover:bg-ink/5" title="退出登录">
+              <button onClick={logout} className="focus-ring site-nav-item" title="退出登录">
                 <LogOut size={18} />
               </button>
             ) : (
@@ -46,8 +48,8 @@ function Shell() {
             )}
           </nav>
         </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      </header>}
+      <main className={machineSession ? "session-main" : "site-main"}>
         <Suspense fallback={<div className="rounded border border-ink/10 bg-panel p-6">加载中...</div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/cards" replace />} />
@@ -71,11 +73,11 @@ function NavItem({ to, icon, label }: { to: string; icon: ReactNode; label: stri
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `focus-ring flex items-center gap-2 rounded px-3 py-2 hover:bg-ink/5 ${isActive ? "bg-surface shadow-sm" : ""}`
+        `focus-ring site-nav-item ${isActive ? "is-active" : ""}`
       }
     >
       {icon}
-      <span className="hidden sm:inline">{label}</span>
+      <span className="nav-label">{label}</span>
     </NavLink>
   );
 }

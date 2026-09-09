@@ -121,28 +121,34 @@ describe("createShopSchema", () => {
     ).toThrow("允许距离最大为 1000 米");
   });
 
-  it("accepts small raster logo data and rejects SVG data", () => {
+  it("accepts small raster hero data and rejects SVG data", () => {
     expect(
       createShopSchema.parse({
         name: "店铺",
-        logoData: "data:image/png;base64,aGVsbG8=",
+        heroData: "data:image/png;base64,aGVsbG8=",
         latitude: 35.0,
         longitude: 139.0,
-      }).logoData,
+      }).heroData,
     ).toBe("data:image/png;base64,aGVsbG8=");
 
     expect(() =>
       createShopSchema.parse({
         name: "店铺",
-        logoData: "data:image/svg+xml;base64,PHN2Zy8+",
+        heroData: "data:image/svg+xml;base64,PHN2Zy8+",
         latitude: 35.0,
         longitude: 139.0,
       }),
-    ).toThrow("Logo 只支持 PNG、JPG 或 WebP 图片");
+    ).toThrow("封面只支持 PNG、JPG 或 WebP 图片");
   });
 });
 
 describe("patchShopSchema", () => {
+  it("distinguishes removing a cover from leaving it unchanged", () => {
+    expect(patchShopSchema.parse({ heroData: null })).toEqual({ heroData: null });
+    expect(patchShopSchema.parse({ name: "店铺" }).heroData).toBeUndefined();
+    expect(() => patchShopSchema.parse({ heroData: "https://example.com/image.jpg" })).toThrow();
+    expect(() => patchShopSchema.parse({ heroData: "data:image/png;base64," + "a".repeat(700_000) })).toThrow();
+  });
   it("accepts partial shop updates", () => {
     expect(patchShopSchema.parse({ name: "新名称" })).toEqual({ name: "新名称" });
     expect(patchShopSchema.parse({ radiusMeters: 500 })).toEqual({ radiusMeters: 500 });

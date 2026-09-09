@@ -69,7 +69,7 @@ export function publicMachine(machine: MachineRow) {
     name: machine.name,
     shop: {
       name: machine.shop_name,
-      logoUrl: machine.shop_logo_url,
+      heroUrl: machine.shop_hero_url,
       latitude: machine.latitude,
       longitude: machine.longitude,
       radiusMeters: machine.radius_meters,

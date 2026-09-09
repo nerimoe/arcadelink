@@ -1,61 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Activity, Image as ImageIcon, Link2, Lock, Pencil, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
+import { Activity, Link2, Lock, Pencil, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
 import { Api, type LoginEvent, type Machine, type Shop, type ShopMember } from "../api";
 import { useAuth } from "./AuthContext";
 import { MapPicker } from "./MapPicker";
 import { RequireLogin } from "./RequireLogin";
-
-const MAX_LOGO_INPUT_BYTES = 8 * 1024 * 1024;
-const MAX_LOGO_DATA_LENGTH = 700_000;
-const LOGO_SIZE = 512;
-
-function cropLogo(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("读取 Logo 失败，请重试"));
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === "string" ? reader.result : "";
-      if (!dataUrl) {
-        reject(new Error("读取 Logo 失败，请重试"));
-        return;
-      }
-
-      const image = new Image();
-      image.onerror = () => reject(new Error("无法读取这张图片，请换一张试试"));
-      image.onload = () => {
-        const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
-        const canvas = document.createElement("canvas");
-        canvas.width = LOGO_SIZE;
-        canvas.height = LOGO_SIZE;
-        const context = canvas.getContext("2d");
-        if (!context || !sourceSize) {
-          reject(new Error("无法处理这张图片，请换一张试试"));
-          return;
-        }
-
-        const sourceX = (image.naturalWidth - sourceSize) / 2;
-        const sourceY = (image.naturalHeight - sourceSize) / 2;
-        context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, LOGO_SIZE, LOGO_SIZE);
-
-        let result = canvas.toDataURL("image/webp", 0.88);
-        if (!result.startsWith("data:image/webp") || result.length > MAX_LOGO_DATA_LENGTH) {
-          context.fillStyle = "#ffffff";
-          context.fillRect(0, 0, LOGO_SIZE, LOGO_SIZE);
-          context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, LOGO_SIZE, LOGO_SIZE);
-          result = canvas.toDataURL("image/jpeg", 0.82);
-        }
-        if (result.length > MAX_LOGO_DATA_LENGTH) {
-          reject(new Error("裁切后的 Logo 仍然过大，请换一张图片"));
-          return;
-        }
-        resolve(result);
-      };
-      image.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  });
-}
+import { ShopHeroEditor } from "./ShopHeroEditor";
 
 export function MerchantPage() {
   const { user, refresh } = useAuth();
@@ -126,7 +76,7 @@ export function MerchantPage() {
   return (
     <RequireLogin>
       <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <div className="grid content-start gap-4">
+        <div className="order-2 grid content-start gap-6 lg:order-1">
           {shops.length > 0 && (
             <div className="rounded border border-ink/10 bg-panel p-4 shadow-soft">
               <div className="mb-3 flex items-center justify-between gap-2">
@@ -176,7 +126,7 @@ export function MerchantPage() {
           )}
         </div>
 
-        <div className="grid content-start gap-4">
+        <div className="order-1 grid content-start gap-6 lg:order-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold">{selectedShop?.name || "店家管理"}</h1>
@@ -227,7 +177,7 @@ export function MerchantPage() {
               <Store size={32} className="mx-auto mb-2 text-ink/40" />
               <p className="font-medium text-ink">还没有店铺</p>
               <p className="mt-1 text-sm">
-                {shops.length === 0 ? "请在左侧填写店铺信息并创建你的第一家店铺" : "请在左侧选择要管理的店铺"}
+                {shops.length === 0 ? "填写店铺信息，创建你的第一家店铺" : "选择要管理的店铺"}
               </p>
             </div>
           ) : (
@@ -258,20 +208,20 @@ function ShopForm({
   onCancel?: () => void;
 }) {
   const [name, setName] = useState(shop?.name ?? "");
-  const [logoData, setLogoData] = useState<string | null>(shop?.logoUrl ?? null);
+  const [heroData, setHeroData] = useState<string | null | undefined>(undefined);
   const [latitude, setLatitude] = useState<number | null>(shop?.latitude ?? null);
   const [longitude, setLongitude] = useState<number | null>(shop?.longitude ?? null);
   const [radiusMeters, setRadiusMeters] = useState(
     String(shop?.radiusMeters ?? shop?.radius_meters ?? 80),
   );
-  const [logoBusy, setLogoBusy] = useState(false);
+  const [heroBusy, setHeroBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (shop) {
       setName(shop.name);
-      setLogoData(shop.logoUrl ?? null);
+      setHeroData(undefined);
       setLatitude(shop.latitude);
       setLongitude(shop.longitude);
       setRadiusMeters(String(shop.radiusMeters ?? shop.radius_meters ?? 80));
@@ -289,8 +239,8 @@ function ShopForm({
       setError("允许打卡距离必须在 30 到 1000 米之间");
       return;
     }
-    if (logoBusy) {
-      setError("Logo 正在处理，请稍候");
+    if (heroBusy) {
+      setError("请先完成封面裁剪");
       return;
     }
     setBusy(true);
@@ -299,7 +249,7 @@ function ShopForm({
       if (shop) {
         const result = await Api.updateShop(shop.id, {
           name,
-          ...(logoData ? { logoData } : {}),
+          ...(heroData !== undefined ? { heroData } : {}),
           latitude,
           longitude,
           radiusMeters: radius,
@@ -308,13 +258,13 @@ function ShopForm({
       } else {
         const result = await Api.createShop({
           name,
-          ...(logoData ? { logoData } : {}),
+          ...(heroData !== undefined ? { heroData } : {}),
           latitude,
           longitude,
           radiusMeters: radius,
         });
         setName("");
-        setLogoData(null);
+        setHeroData(null);
         setLatitude(null);
         setLongitude(null);
         setRadiusMeters("80");
@@ -358,50 +308,7 @@ function ShopForm({
           />
         </label>
 
-        <label className="grid gap-1.5 text-sm font-medium">
-          店铺 Logo / 头像
-          <div className="flex items-center gap-4 rounded border border-ink/10 bg-surface p-3">
-            {logoData ? (
-              <img src={logoData} alt="店铺 Logo 预览" className="size-20 shrink-0 rounded-xl object-cover" />
-            ) : (
-              <span className="grid size-20 shrink-0 place-items-center rounded-xl bg-panel text-ink/40">
-                <ImageIcon size={22} />
-              </span>
-            )}
-            <div className="min-w-0 flex-1">
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="min-w-0 max-w-full text-sm font-normal"
-                disabled={logoBusy}
-                onChange={(event) => {
-                  const input = event.currentTarget;
-                  const file = input.files?.[0];
-                  input.value = "";
-                  if (!file) return;
-                  if (!file.type.match(/^image\/(png|jpe?g|webp)$/)) {
-                    setError("Logo 只支持 PNG、JPG 或 WebP 图片");
-                    return;
-                  }
-                  if (file.size > MAX_LOGO_INPUT_BYTES) {
-                    setError("原图不能超过 8 MB");
-                    return;
-                  }
-                  setLogoBusy(true);
-                  setError(null);
-                  void cropLogo(file)
-                    .then(setLogoData)
-                    .catch((caught) => setError(caught instanceof Error ? caught.message : "处理 Logo 失败"))
-                    .finally(() => setLogoBusy(false));
-                }}
-              />
-              <p className="mt-2 text-xs text-ink/55">
-                {logoBusy ? "正在裁切并压缩..." : "上传后自动居中裁切为正方形，并显示预览"}
-              </p>
-            </div>
-          </div>
-          <span className="text-xs font-normal text-ink/50">支持 PNG、JPG、WebP；原图最大 8 MB，保存后的 Logo 不超过 512 KB</span>
-        </label>
+        <ShopHeroEditor key={shop?.id ?? "new"} value={heroData === undefined ? shop?.heroUrl ?? null : heroData} onChange={setHeroData} onBusy={setHeroBusy} />
 
         <div>
           <span className="mb-1.5 block text-sm font-medium">店铺位置</span>
@@ -459,7 +366,7 @@ function ShopForm({
           </span>
         </label>
         <div className="flex gap-2">
-          <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy || logoBusy}>
+          <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy || heroBusy}>
             {shop ? <Save size={18} /> : <Plus size={18} />}
             {shop ? "保存修改" : "保存店铺"}
           </button>
@@ -630,13 +537,13 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
 
   return (
     <article className="grid gap-4 rounded border border-ink/10 bg-surface p-4 sm:grid-cols-[160px_1fr]">
-      <div className="grid place-items-center rounded border border-ink/10 bg-white p-3">
-        <QRCodeSVG value={url} size={132} />
+      <div className="grid w-fit place-items-center self-start justify-self-center rounded-2xl bg-white p-3">
+        <QRCodeSVG value={url} size={132} title={`${machine.name} 登录二维码`} />
       </div>
       <div className="min-w-0">
         <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
           <div className="flex items-center gap-2">
-            <input className="focus-ring min-h-10 flex-1 rounded border border-ink/10 bg-panel px-3 font-semibold" value={name} onChange={(event) => setName(event.target.value)} />
+            <input aria-label="设备名称" className="focus-ring min-h-10 flex-1 rounded border border-ink/10 bg-panel px-3 font-semibold" value={name} onChange={(event) => setName(event.target.value)} />
             {hasPassword && !clearPassword && (
               <span className="inline-flex shrink-0 items-center gap-1 rounded bg-mint/10 px-2 py-1 text-xs font-medium text-mint" title="已配置加密密码">
                 <Lock size={12} />
@@ -644,7 +551,7 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
               </span>
             )}
           </div>
-          <label className="flex items-center gap-2 rounded border border-ink/10 bg-panel px-3 text-sm font-medium">
+          <label className="flex min-h-11 items-center gap-2 rounded-2xl bg-panel px-3 text-sm font-medium">
             <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
             可使用
           </label>

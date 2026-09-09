@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
-import { CheckCircle2, CreditCard, Fingerprint, Gamepad2, Loader2, LocateFixed, ShieldAlert } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
+import { Check, ChevronRight, Loader2 } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
 import { Api, type Card, type PublicMachine } from "../api";
 import { passkeyErrorMessage } from "../passkeys";
@@ -19,10 +19,14 @@ export function MachineLoginPage() {
   const [countdown, setCountdown] = useState(3);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [heroFailed, setHeroFailed] = useState(false);
+  const [munetBusy, setMunetBusy] = useState(false);
+  const [reload, setReload] = useState(0);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   useEffect(() => {
+    setHeroFailed(false);
     if (queryError) {
       setError(queryError);
       return;
@@ -33,7 +37,7 @@ export function MachineLoginPage() {
     }
     Api.publicMachine(ticket)
       .then((result) => setMachine(result.machine))
-      .catch(() => setError("机台不可用"));
+      .catch(() => setError("这台机台暂时不可用，请稍后重试"));
   }, [ticket, queryError]);
 
   useEffect(() => {
@@ -48,7 +52,7 @@ export function MachineLoginPage() {
       setCards(activeCards);
     }).catch(() => setError("无法加载卡片"))
       .finally(() => setCardsLoading(false));
-  }, [machine, user]);
+  }, [machine, user, reload]);
 
   const loginWithPasskey = async () => {
     setPasskeyBusy(true);
@@ -107,227 +111,76 @@ export function MachineLoginPage() {
     return () => clearTimeout(timer);
   }, [status, countdown]);
 
-  if (loading) return <Panel>加载中...</Panel>;
-  if (status === "destroyed") {
-    return (
-      <section className="mx-auto max-w-lg py-3">
-        <div className="rounded border border-ink/10 bg-panel p-6 shadow-soft text-center">
-          <span className="mx-auto grid size-14 place-items-center rounded-full bg-mint/10 text-mint mb-4">
-            <CheckCircle2 size={32} />
-          </span>
-          <h2 className="text-xl font-semibold text-ink">本次会话已结束</h2>
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <button
-              type="button"
-              onClick={() => window.close()}
-              className="focus-ring inline-flex items-center justify-center rounded bg-ink px-5 py-2.5 text-sm font-semibold text-canvas hover:bg-ink/90"
-            >
-              关闭此页面
-            </button>
-          </div>
-        </div>
-      </section>
-    );
-  }
-  if (error && !machine) {
-    return (
-      <Panel>
-        <div className="flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded bg-coral/10 text-coral">
-            <ShieldAlert size={20} />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-ink">无法进入机台会话</h2>
-            <p className="mt-1 text-sm text-ink/70">{error}</p>
-          </div>
-        </div>
-      </Panel>
-    );
-  }
-  if (!machine) {
-    return (
-      <section className="mx-auto max-w-lg py-3">
-        <div className="flex min-h-28 items-center justify-center gap-3 rounded-2xl border border-ink/10 bg-panel p-6 text-sm text-ink/65 shadow-soft">
-          <Loader2 size={20} className="animate-spin text-mint" />
-          正在加载机台信息...
-        </div>
-      </section>
-    );
-  }
-
   const munetNext = ticket ? `/m?ticket=${encodeURIComponent(ticket)}` : "/m";
+  const busy = status !== "idle";
+  const completed = status === "destroyed";
+  const title = completed ? "本次登录已完成" : user ? "选择卡片" : "登录 ArcadeLink";
 
   return (
-    <section className="mx-auto max-w-lg py-2 sm:py-5">
-      <div className="overflow-hidden rounded-2xl border border-ink/10 bg-panel shadow-soft">
-        <header className="border-b border-ink/10 px-4 py-4 sm:px-6 sm:py-5">
-          <div className="flex items-center gap-4">
-            <span className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-ink text-canvas shadow-sm sm:size-24">
-              {machine.shop.logoUrl ? (
-                <img
-                  src={machine.shop.logoUrl}
-                  alt={`${machine.shop.name} Logo`}
-                  className="size-full object-cover"
-                  decoding="async"
-                />
-              ) : (
-                <Gamepad2 size={30} />
-              )}
-            </span>
-            <div className="min-w-0">
-              <p className="break-words text-base font-semibold leading-snug text-ink/70 sm:text-lg">{machine.shop.name}</p>
-              <h1 className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-ink sm:text-3xl">{machine.name}</h1>
-            </div>
+    <section className="machine-session" aria-busy={loading || (!machine && !error)}>
+      {machine ? (
+        <header className="machine-hero">
+          {machine.shop.heroUrl && !heroFailed && <img src={machine.shop.heroUrl} alt="" decoding="async" onError={() => setHeroFailed(true)} />}
+          <div className="machine-hero-info">
+            <h1>{machine.shop.name}</h1>
+            <p>{machine.name}</p>
           </div>
         </header>
+      ) : !error ? <div className="machine-hero session-skeleton" role="status" aria-label="正在加载机台信息" /> : null}
 
-        <div className="p-4 sm:p-5">
-          {!user ? (
-            <div className="grid gap-2.5">
-              <p className="text-sm font-medium text-ink/70">登录账号后即可登录这台机台</p>
-              {passkeyError && (
-                <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
-                  {passkeyError}
-                </p>
-              )}
-              <a
-                className="focus-ring flex min-h-12 items-center justify-center gap-2 rounded-xl bg-ink px-4 font-semibold text-canvas transition-transform active:scale-[.99]"
-                href={`/api/auth/munet?next=${encodeURIComponent(munetNext)}`}
-              >
-                <img src="/munet-logo.png" alt="" className="size-5 object-contain" />
-                使用 MuNET 登录
-              </a>
-              {browserSupportsWebAuthn() && (
-                <button
-                  className="focus-ring flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-ink/15 bg-surface px-4 font-semibold text-ink transition-transform active:scale-[.99] disabled:opacity-60"
-                  disabled={passkeyBusy}
-                  onClick={loginWithPasskey}
-                >
-                  <Fingerprint size={18} />
-                  {passkeyBusy ? "正在验证 Passkey..." : "使用 Passkey 登录"}
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-ink/70">选择卡片登录</p>
-                <Link to="/cards" className="text-xs text-mint hover:underline">
-                  管理卡片
-                </Link>
-              </div>
-
-              {error && (
-                <p className="flex items-center gap-2 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
-                  <ShieldAlert size={16} className="shrink-0" />
-                  {error}
-                </p>
-              )}
-
-              {cardsLoading ? (
-                <div className="flex items-center justify-center gap-2 rounded-xl border border-ink/10 bg-surface py-7 text-sm text-ink/60">
-                  <Loader2 size={18} className="animate-spin" />
-                  正在加载卡片...
-                </div>
-              ) : cards.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-ink/20 bg-surface p-5 text-center">
-                  <p className="text-sm text-ink/60">还没有添加卡片</p>
-                  <Link
-                    className="focus-ring mt-3 inline-flex items-center gap-1 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-canvas"
-                    to="/cards"
-                  >
-                    先添加一张卡片
-                  </Link>
-                </div>
-              ) : (
-                <div className="grid gap-2">
-                  {cards.map((card) => {
-                    const isThisCard = activeCardId === card.id;
-                    const isBusy = status !== "idle" && isThisCard;
-                    const isSuccess = status === "sent" && isThisCard;
-                    const isDisabled = status !== "idle" && !isThisCard;
-
-                    return (
-                      <button
-                        key={card.id}
-                        type="button"
-                        disabled={status !== "idle"}
-                        onClick={() => loginWithCard(card.id)}
-                        className={`focus-ring flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border p-3.5 text-left transition-all ${
-                          isSuccess
-                            ? "border-mint bg-mint/10 text-mint"
-                            : isThisCard
-                            ? "border-ink bg-surface shadow-soft"
-                            : "border-ink/10 bg-surface hover:border-ink/25 hover:shadow-soft"
-                        } disabled:cursor-not-allowed ${isDisabled ? "opacity-40" : ""}`}
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span
-                            className={`grid size-9 shrink-0 place-items-center rounded-lg ${
-                              isSuccess ? "bg-mint text-white" : "bg-panel text-ink"
-                            }`}
-                          >
-                            {isSuccess ? (
-                              <CheckCircle2 size={19} />
-                            ) : isBusy ? (
-                              status === "locating" ? (
-                                <LocateFixed size={19} className="animate-pulse text-ink/60" />
-                              ) : (
-                                <Loader2 size={19} className="animate-spin text-ink/60" />
-                              )
-                            ) : (
-                              <CreditCard size={19} />
-                            )}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold text-ink">{card.label}</p>
-                            <p className="font-mono text-xs text-ink/50">尾号 {card.accessCode.slice(-4)}</p>
-                          </div>
-                        </div>
-
-                        <div className="shrink-0 text-right">
-                          {isSuccess ? (
-                            <span className="text-sm font-semibold text-mint">已登录 ({countdown}s)</span>
-                          ) : isBusy ? (
-                            status === "locating" ? (
-                              <span className="flex items-center gap-1 text-xs font-medium text-ink/70">
-                                <LocateFixed size={14} className="animate-pulse" />
-                                确认位置...
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-xs font-medium text-ink/70">
-                                <Loader2 size={14} className="animate-spin" />
-                                正在登录...
-                              </span>
-                            )
-                          ) : (
-                            <span className="focus-ring inline-flex items-center gap-1 rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-canvas">
-                              <CreditCard size={14} />
-                              登录
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+      <div className="session-task">
+        <h2>{!machine ? error ? "无法进入机台会话" : "正在加载…" : title}</h2>
+        {machine && !completed && <p className="session-subtitle">{user ? "选择用于这次机台登录的卡片" : "登录后选择用于这台机台的卡片"}</p>}
+        <div aria-live="polite" aria-atomic="true">
+          {(error || passkeyError) && <p className="session-error">{error || passkeyError}</p>}
+          {completed && <p className="session-subtitle">可以关闭此页面</p>}
         </div>
       </div>
+
+      {machine && !completed && !loading && (!user ? (
+        <div className="session-actions">
+          <button className="session-action primary" disabled={passkeyBusy || munetBusy} onClick={() => {
+            setMunetBusy(true);
+            window.location.assign(`/api/auth/munet?next=${encodeURIComponent(munetNext)}`);
+          }}>
+            {munetBusy && <Loader2 size={20} className="animate-spin" />}
+            {munetBusy ? "正在连接 MuNET…" : "使用 MuNET 登录"}
+          </button>
+          <button className="session-action" disabled={passkeyBusy || munetBusy || !browserSupportsWebAuthn()} onClick={() => void loginWithPasskey()}>
+            {passkeyBusy && <Loader2 size={20} className="animate-spin" />}
+            {passkeyBusy ? "正在验证 Passkey…" : "使用 Passkey 登录"}
+          </button>
+          {!browserSupportsWebAuthn() && <p className="session-subtitle text-center">当前浏览器不支持 Passkey，请使用 MuNET 登录</p>}
+        </div>
+      ) : cardsLoading ? (
+        <div className="credential-list" role="status" aria-label="正在加载卡片">
+          {[0, 1, 2].map(row => <div key={row} className="credential-row session-skeleton" />)}
+        </div>
+      ) : cards.length ? (
+        <div className="credential-list">
+          {cards.map(card => {
+            const active = activeCardId === card.id;
+            const detail = active && status === "locating" ? "确认位置…" : active && status === "sending" ? "正在登录…" : active && status === "sent" ? "已登录" : `尾号 ${card.accessCode.slice(-4)}`;
+            return <button key={card.id} className="credential-row" disabled={busy} data-active={active} onClick={() => void loginWithCard(card.id)}>
+              <span className="min-w-0"><span className="credential-name">{card.label}</span><span className="credential-detail" aria-live={active ? "polite" : "off"}>{detail}</span></span>
+              {active && status === "sent" ? <Check size={22} className="text-mint" /> : active && busy ? <Loader2 size={20} className="animate-spin text-mint" /> : <ChevronRight size={20} className="text-ink/30" />}
+            </button>;
+          })}
+        </div>
+      ) : (
+        <div className="text-center">
+          <p className="session-subtitle">还没有可用卡片，请先在 ArcadeLink 添加卡片</p>
+          <button className="session-action mt-6 w-full" onClick={() => { setError(null); setReload(value => value + 1); }}>重新加载卡片</button>
+        </div>
+      ))}
     </section>
   );
-}
-
-function Panel({ children }: { children: ReactNode }) {
-  return <div className="mx-auto max-w-lg rounded border border-ink/10 bg-panel p-6 shadow-soft">{children}</div>;
 }
 
 function friendlyLoginError(err: unknown): string {
   if (err instanceof Error) {
     const msg = err.message;
-    if (msg === "geo_denied") return "需要定位权限";
+    if (msg === "geo_denied") return "需要定位权限才能确认你在店内";
     if (msg === "geo_unsupported" || msg === "geo_failed") return "定位获取失败";
     if (msg.includes("店内") || msg.includes("距离") || msg.includes("到店") || msg.includes("位置确认失败")) {
       return "请到店再进行登录";
@@ -345,7 +198,7 @@ function friendlyLoginError(err: unknown): string {
       return "卡片不可用或已失效";
     }
     if (msg.includes("机台") || msg.includes("通信") || msg.includes("响应") || msg.includes("502")) {
-      return "机台暂时不可用，请稍后重试";
+      return "这台机台暂时不可用，请稍后重试";
     }
   }
   return "登录失败，请稍后重试";
