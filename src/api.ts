@@ -41,6 +41,7 @@ export type MachineSession = {
 
 export type Shop = {
   id: string;
+  publicId: string;
   name: string;
   latitude: number;
   longitude: number;
@@ -52,6 +53,7 @@ export type Machine = {
   id: string;
   publicId: string;
   shopId: string;
+  shopPublicId: string;
   name: string;
   enabled: boolean | number;
   hasPassword?: boolean | number;
@@ -152,10 +154,10 @@ export const Api = {
       body: JSON.stringify({ name }),
     }),
   cards: () => api<{ cards: Card[]; authorizationRequired: boolean; syncError: string | null }>("/api/cards"),
-  startMachineSession: (publicId: string) =>
+  startMachineSession: (shopCode: string, publicId: string) =>
     api<MachineSession>("/api/machines/session/start", {
       method: "POST",
-      body: JSON.stringify({ publicId }),
+      body: JSON.stringify({ shopCode, publicId }),
     }),
   syncCards: () =>
     api<{ cards: Card[]; authorizationRequired: boolean; syncError: string | null }>("/api/cards/sync", {

@@ -368,9 +368,9 @@ app.delete("/api/cards/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-app.get("/t/:shopId/:publicId", async (c) => {
+app.get("/t/:shopCode/:publicId", async (c) => {
   try {
-    const session = await createMachineSession(c, c.req.param("shopId"), c.req.param("publicId"));
+    const session = await createMachineSession(c, c.req.param("shopCode"), c.req.param("publicId"));
     return c.redirect(`/m?ticket=${encodeURIComponent(session.ticket)}`, 302);
   } catch (error) {
     if (error instanceof HTTPException && error.status === 404) {
@@ -390,7 +390,7 @@ app.post("/api/machines/session/start", async (c) => {
     },
   ]);
   const body = machineSessionStartSchema.parse(await c.req.json());
-  const session = await createMachineSession(c, body.shopId, body.publicId);
+  const session = await createMachineSession(c, body.shopCode, body.publicId);
   return c.json({
     ticket: session.ticket,
     expiresIn: session.expiresIn,
@@ -497,13 +497,15 @@ app.post("/api/merchant/shops", async (c) => {
   const user = requireUser(c);
   const body = createShopSchema.parse(await c.req.json());
   const shopId = crypto.randomUUID();
+  const publicId = randomToken(8);
   await c.env.DB.batch([
-    c.env.DB.prepare("INSERT INTO shops (id, name, latitude, longitude, radius_meters, created_by) VALUES (?, ?, ?, ?, ?, ?)")
-      .bind(shopId, body.name, body.latitude, body.longitude, clampShopRadius(body.radiusMeters), user.id),
+    c.env.DB.prepare(
+      "INSERT INTO shops (id, public_id, name, latitude, longitude, radius_meters, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).bind(shopId, publicId, body.name, body.latitude, body.longitude, clampShopRadius(body.radiusMeters), user.id),
     c.env.DB.prepare("INSERT INTO shop_members (id, shop_id, user_id, role) VALUES (?, ?, ?, 'owner')")
       .bind(crypto.randomUUID(), shopId, user.id),
   ]);
-  return c.json({ shop: { id: shopId, ...body, radiusMeters: clampShopRadius(body.radiusMeters) } }, 201);
+  return c.json({ shop: { id: shopId, publicId, ...body, radiusMeters: clampShopRadius(body.radiusMeters) } }, 201);
 });
 
 app.patch("/api/merchant/shops/:id", async (c) => {
@@ -542,7 +544,7 @@ app.patch("/api/merchant/shops/:id", async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, name, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
+    "SELECT id, public_id AS publicId, name, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
   )
     .bind(shopId)
     .first();
@@ -638,7 +640,7 @@ app.get("/api/merchant/machines", async (c) => {
   if (!shopId) jsonError(400, "请选择店铺");
   if (!(await canAccessShop(c, user, shopId))) jsonError(403, "你没有这个店铺的管理权限");
   const machines = await c.env.DB.prepare(
-    "SELECT id, public_id AS publicId, shop_id AS shopId, name, enabled, (hinata_password_encrypted IS NOT NULL AND hinata_password_encrypted != '') AS hasPassword, created_at AS createdAt FROM machines WHERE shop_id = ? ORDER BY created_at DESC",
+    "SELECT machines.id, machines.public_id AS publicId, machines.shop_id AS shopId, shops.public_id AS shopPublicId, machines.name, machines.enabled, (machines.hinata_password_encrypted IS NOT NULL AND machines.hinata_password_encrypted != '') AS hasPassword, machines.created_at AS createdAt FROM machines JOIN shops ON shops.id = machines.shop_id WHERE machines.shop_id = ? ORDER BY machines.created_at DESC",
   )
     .bind(shopId)
     .all();
@@ -649,6 +651,10 @@ app.post("/api/merchant/machines", async (c) => {
   const user = requireUser(c);
   const body = createMachineSchema.parse(await c.req.json());
   if (!(await canAccessShop(c, user, body.shopId))) jsonError(403, "你没有这个店铺的管理权限");
+  const shop = await c.env.DB.prepare("SELECT public_id AS publicId FROM shops WHERE id = ?")
+    .bind(body.shopId)
+    .first<{ publicId: string }>();
+  if (!shop) jsonError(404, "没有找到这个店铺");
   const id = crypto.randomUUID();
   const publicId = randomPublicId();
   const encrypted = await encryptSecret(body.hinataUrl, c.env.URL_ENCRYPTION_KEY);
@@ -666,6 +672,7 @@ app.post("/api/merchant/machines", async (c) => {
         id,
         publicId,
         shopId: body.shopId,
+        shopPublicId: shop.publicId,
         name: body.name,
         enabled: body.enabled,
         hasPassword: Boolean(encryptedPassword),

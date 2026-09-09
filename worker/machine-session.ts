@@ -15,13 +15,13 @@ export type MachineSession = {
 
 export async function createMachineSession(
   c: Context<AppBindings>,
-  shopId: string,
+  shopCode: string,
   publicId: string,
 ): Promise<MachineSession> {
-  const normalizedShopId = shopId.trim();
+  const normalizedShopCode = shopCode.trim();
   const normalizedPublicId = publicId.trim();
   const machine = await getMachineByPublicId(c.env.DB, normalizedPublicId);
-  if (!machine || machine.enabled !== 1 || machine.shop_id !== normalizedShopId) {
+  if (!machine || machine.enabled !== 1 || machine.shop_public_id !== normalizedShopCode) {
     jsonError(404, "机台不可用");
   }
 

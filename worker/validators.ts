@@ -48,7 +48,7 @@ export const machineLoginSchema = z.object({
 });
 
 export const machineSessionStartSchema = z.object({
-  shopId: z.string().trim().min(1, "缺少店铺编号").max(80, "店铺编号无效"),
+  shopCode: z.string().trim().min(1, "缺少店铺编号").max(32, "店铺编号无效"),
   publicId: z.string().trim().min(1, "缺少机台编号").max(80, "机台编号无效"),
 });
 

@@ -29,6 +29,7 @@ export type AuthUser = {
 
 export type ShopRow = {
   id: string;
+  publicId: string;
   name: string;
   latitude: number;
   longitude: number;
@@ -40,6 +41,7 @@ export type MachineRow = {
   id: string;
   public_id: string;
   shop_id: string;
+  shop_public_id: string;
   name: string;
   hinata_url_encrypted: string;
   hinata_password_encrypted: string | null;
