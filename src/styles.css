@@ -124,6 +124,11 @@ input::placeholder {
 .session-task h2 { font-size: clamp(28px, 7vw, 32px); line-height: 1.25; font-weight: 700; letter-spacing: -.6px; }
 .session-subtitle { margin-top: 10px; font-size: 17px; line-height: 1.5; color: rgb(var(--color-ink) / .68); }
 .session-account-action { margin: 16px auto 0; color: var(--color-mint); font-size: 15px; font-weight: 600; }
+.session-task-row { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.session-logout-button { width: 40px; height: 40px; border-radius: 50%; background: rgb(var(--color-ink) / .08); color: rgb(var(--color-ink) / .7); font-size: 22px; }
+.session-alert { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px; background: rgb(0 0 0 / .18); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.session-alert > div { width: min(360px, 100%); padding: 24px; border-radius: 24px; background: rgb(255 255 255 / .9); box-shadow: 0 20px 60px rgb(0 0 0 / .18); text-align: center; }
+.session-alert .session-action { width: 100%; margin-top: 20px; }
 .session-error { margin: 16px 0 0; color: var(--color-coral); font-size: 16px; line-height: 1.5; }
 .session-expired { margin-top: 96px; text-align: center; }
 .session-expired h1 { font-size: 30px; font-weight: 700; }

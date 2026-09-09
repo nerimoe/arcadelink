@@ -25,7 +25,7 @@ export function MachineLoginPage() {
   const [reload, setReload] = useState(0);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (expired) {
@@ -68,7 +68,9 @@ export function MachineLoginPage() {
       await Api.loginWithPasskey(response);
       await refresh();
     } catch (caught) {
-      setPasskeyError(passkeyErrorMessage(caught));
+      const message = passkeyErrorMessage(caught);
+      if (/cancel|abort|取消/i.test(message)) return;
+      setPasskeyError(message);
     } finally {
       setPasskeyBusy(false);
     }
@@ -103,7 +105,10 @@ export function MachineLoginPage() {
       }
       setStatus("idle");
       setActiveCardId(null);
-      setError(friendlyLoginError(caught));
+      const message = friendlyLoginError(caught);
+      if (message === "请到店再进行登录" || message === "需要定位权限才能确认你在店内" || message.includes("机台暂时不可用")) {
+        setAlertMessage(message);
+      } else setError(message);
     }
   };
 
@@ -139,11 +144,9 @@ export function MachineLoginPage() {
       ) : !error ? <div className="machine-hero session-skeleton" role="status" aria-label="正在加载机台信息" /> : null}
 
       <div className="session-task">
-        <h2>{!machine ? error ? "无法进入机台会话" : "正在加载…" : title}</h2>
-        {machine && !completed && <p className="session-subtitle">{user ? "选择用于这次机台登录的卡片" : "登录后选择用于这台机台的卡片"}</p>}
-        {user && !completed && <button type="button" className="session-account-action" onClick={() => void logout()}>退出账号，切换用户</button>}
+        {user && !completed ? <div className="session-task-row"><h2>选择卡片</h2><button type="button" className="session-logout-button" aria-label="退出账号" onClick={() => { if (window.confirm("确定退出当前账号吗？")) void logout(); }}>↪</button></div> : !machine ? error ? <h2>无法进入机台会话</h2> : <h2>正在加载…</h2> : !completed && <h2>{title}</h2>}
         <div aria-live="polite" aria-atomic="true">
-          {(error || passkeyError) && <p className="session-error">{error || passkeyError}</p>}
+          {!user && (error || passkeyError) && <p className="session-error">{error || passkeyError}</p>}
           {completed && <p className="session-subtitle">可以关闭此页面</p>}
         </div>
       </div>
@@ -184,6 +187,7 @@ export function MachineLoginPage() {
           <button className="session-action mt-6 w-full" onClick={() => { setError(null); setReload(value => value + 1); }}>重新加载卡片</button>
         </div>
       ))}
+      {alertMessage && <div className="session-alert" role="alertdialog" aria-modal="true"><div><p>{alertMessage}</p><button className="session-action primary" onClick={() => setAlertMessage(null)}>知道了</button></div></div>}
     </section>
   );
 }
