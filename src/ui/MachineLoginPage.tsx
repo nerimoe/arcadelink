@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Check, ChevronRight, Loader2 } from "lucide-react";
+import { Check, ChevronRight, Loader2, LogOut } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
 import { Api, type Card, type PublicMachine } from "../api";
 import { passkeyErrorMessage } from "../passkeys";
@@ -129,7 +129,7 @@ export function MachineLoginPage() {
   const munetNext = ticket ? `/m?ticket=${encodeURIComponent(ticket)}` : "/m";
   const busy = status !== "idle";
   const completed = status === "destroyed";
-  const title = completed ? "本次登录已完成" : user ? "选择卡片" : "登录 ArcadeLink";
+  const title = completed ? "本次登录已完成" : "";
 
   return (
     <section className="machine-session" aria-busy={loading || (!machine && !error)}>
@@ -144,7 +144,7 @@ export function MachineLoginPage() {
       ) : !error ? <div className="machine-hero session-skeleton" role="status" aria-label="正在加载机台信息" /> : null}
 
       <div className="session-task">
-        {user && !completed ? <div className="session-task-row"><h2>选择卡片</h2><button type="button" className="session-logout-button" aria-label="退出账号" onClick={() => { if (window.confirm("确定退出当前账号吗？")) void logout(); }}>↪</button></div> : !machine ? error ? <h2>无法进入机台会话</h2> : <h2>正在加载…</h2> : !completed && <h2>{title}</h2>}
+        {user && !completed ? <div className="session-task-row"><h2>选择卡片</h2><button type="button" className="session-logout-button" aria-label="退出账号" onClick={() => { if (window.confirm("确定退出当前账号吗？")) void logout(); }}><LogOut size={20} strokeWidth={2.2} /></button></div> : !machine ? error ? <h2>无法进入机台会话</h2> : <h2>正在加载…</h2> : completed && <h2>{title}</h2>}
         <div aria-live="polite" aria-atomic="true">
           {!user && (error || passkeyError) && <p className="session-error">{error || passkeyError}</p>}
           {completed && <p className="session-subtitle">可以关闭此页面</p>}
