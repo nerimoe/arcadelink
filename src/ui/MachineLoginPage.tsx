@@ -12,7 +12,7 @@ export function MachineLoginPage() {
   const ticket = searchParams.get("ticket") || paramTicket || publicId;
   const queryError = searchParams.get("error");
   const expired = window.location.pathname === "/m/expired" || searchParams.get("expired") === "1";
-  const { user, loading, refresh } = useAuth();
+  const { user, loading, refresh, logout } = useAuth();
   const [machine, setMachine] = useState<PublicMachine | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [cardsLoading, setCardsLoading] = useState(false);
@@ -25,6 +25,7 @@ export function MachineLoginPage() {
   const [reload, setReload] = useState(0);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   useEffect(() => {
     if (expired) {
@@ -140,6 +141,7 @@ export function MachineLoginPage() {
       <div className="session-task">
         <h2>{!machine ? error ? "无法进入机台会话" : "正在加载…" : title}</h2>
         {machine && !completed && <p className="session-subtitle">{user ? "选择用于这次机台登录的卡片" : "登录后选择用于这台机台的卡片"}</p>}
+        {user && !completed && <button type="button" className="session-account-action" onClick={() => void logout()}>退出账号，切换用户</button>}
         <div aria-live="polite" aria-atomic="true">
           {(error || passkeyError) && <p className="session-error">{error || passkeyError}</p>}
           {completed && <p className="session-subtitle">可以关闭此页面</p>}

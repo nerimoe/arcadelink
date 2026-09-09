@@ -88,7 +88,7 @@ input::placeholder {
 }
 
 /* Shared site surfaces and controls. Machine sessions deliberately have no app shell. */
-.site-header { padding: 20px 24px 0; }
+.site-header { position: sticky; top: 0; z-index: 20; padding: 20px 24px 12px; background: rgb(245 245 247 / .72); backdrop-filter: blur(24px) saturate(140%); -webkit-backdrop-filter: blur(24px) saturate(140%); }
 .site-header-inner { max-width: 1120px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .site-brand { display: flex; align-items: center; gap: 12px; font-size: 21px; font-weight: 700; letter-spacing: -.5px; border-radius: 16px; }
 .site-navigation { display: flex; gap: 4px; padding: 6px; background: var(--color-panel); border-radius: 24px; }
@@ -123,6 +123,7 @@ input::placeholder {
 .session-task { text-align: center; margin: 52px 0 30px; }
 .session-task h2 { font-size: clamp(28px, 7vw, 32px); line-height: 1.25; font-weight: 700; letter-spacing: -.6px; }
 .session-subtitle { margin-top: 10px; font-size: 17px; line-height: 1.5; color: rgb(var(--color-ink) / .68); }
+.session-account-action { margin: 16px auto 0; color: var(--color-mint); font-size: 15px; font-weight: 600; }
 .session-error { margin: 16px 0 0; color: var(--color-coral); font-size: 16px; line-height: 1.5; }
 .session-expired { margin-top: 96px; text-align: center; }
 .session-expired h1 { font-size: 30px; font-weight: 700; }
