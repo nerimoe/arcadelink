@@ -10,6 +10,11 @@ export const createCardSchema = z.object({
 
 export const createShopSchema = z.object({
   name: z.string().trim().min(1, "请输入店铺名称").max(80, "店铺名称最多80个字符"),
+  logoData: z
+    .string()
+    .max(700_000, "店铺 Logo 不能超过 512 KB")
+    .regex(/^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/]+={0,2}$/, "Logo 只支持 PNG、JPG 或 WebP 图片")
+    .optional(),
   latitude: z.number().gte(-90, "纬度不正确").lte(90, "纬度不正确"),
   longitude: z.number().gte(-180, "经度不正确").lte(180, "经度不正确"),
   radiusMeters: z.number().gte(30, "允许距离最小为 30 米").lte(1000, "允许距离最大为 1000 米").default(80),

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Fingerprint, Gamepad2 } from "lucide-react";
+import { Fingerprint } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
 import { Api } from "../api";
 import { passkeyErrorMessage } from "../passkeys";
@@ -39,7 +39,7 @@ export function AuthPage() {
           className="focus-ring mt-6 flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-canvas"
           href={`/api/auth/munet?next=${encodeURIComponent(redirectTo)}`}
         >
-          <Gamepad2 size={18} />
+          <img src="/munet-logo.png" alt="" className="size-5 object-contain" />
           使用 MuNET 继续
         </a>
         {browserSupportsWebAuthn() && (

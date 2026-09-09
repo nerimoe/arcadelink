@@ -146,8 +146,12 @@ export function MachineLoginPage() {
     <section className="mx-auto max-w-lg py-3">
       <div className="rounded border border-ink/10 bg-panel p-5 shadow-soft">
         <div className="flex items-start gap-3">
-          <span className="grid size-12 shrink-0 place-items-center rounded bg-ink text-canvas">
-            <Gamepad2 size={24} />
+          <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded bg-ink text-canvas">
+            {machine?.shop.logoUrl ? (
+              <img src={machine.shop.logoUrl} alt={`${machine.shop.name} Logo`} className="size-full object-cover" />
+            ) : (
+              <Gamepad2 size={24} />
+            )}
           </span>
           <div>
             <h1 className="text-2xl font-semibold leading-tight">{title}</h1>
@@ -166,7 +170,7 @@ export function MachineLoginPage() {
               className="focus-ring flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-canvas"
               href={`/api/auth/munet?next=${encodeURIComponent(munetNext)}`}
             >
-              <Gamepad2 size={18} />
+              <img src="/munet-logo.png" alt="" className="size-5 object-contain" />
               使用 MuNET 登录
             </a>
             {browserSupportsWebAuthn() && (

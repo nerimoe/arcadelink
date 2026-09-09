@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Activity, Link2, Lock, Pencil, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
+import { Activity, Image as ImageIcon, Link2, Lock, Pencil, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
 import { Api, type LoginEvent, type Machine, type Shop, type ShopMember } from "../api";
 import { useAuth } from "./AuthContext";
 import { MapPicker } from "./MapPicker";
 import { RequireLogin } from "./RequireLogin";
+
+const MAX_LOGO_BYTES = 512 * 1024;
 
 export function MerchantPage() {
   const { user, refresh } = useAuth();
@@ -207,6 +209,7 @@ function ShopForm({
   onCancel?: () => void;
 }) {
   const [name, setName] = useState(shop?.name ?? "");
+  const [logoData, setLogoData] = useState<string | null>(shop?.logoUrl ?? null);
   const [latitude, setLatitude] = useState<number | null>(shop?.latitude ?? null);
   const [longitude, setLongitude] = useState<number | null>(shop?.longitude ?? null);
   const [radiusMeters, setRadiusMeters] = useState(
@@ -218,6 +221,7 @@ function ShopForm({
   useEffect(() => {
     if (shop) {
       setName(shop.name);
+      setLogoData(shop.logoUrl ?? null);
       setLatitude(shop.latitude);
       setLongitude(shop.longitude);
       setRadiusMeters(String(shop.radiusMeters ?? shop.radius_meters ?? 80));
@@ -241,6 +245,7 @@ function ShopForm({
       if (shop) {
         const result = await Api.updateShop(shop.id, {
           name,
+          ...(logoData ? { logoData } : {}),
           latitude,
           longitude,
           radiusMeters: radius,
@@ -249,11 +254,13 @@ function ShopForm({
       } else {
         const result = await Api.createShop({
           name,
+          ...(logoData ? { logoData } : {}),
           latitude,
           longitude,
           radiusMeters: radius,
         });
         setName("");
+        setLogoData(null);
         setLatitude(null);
         setLongitude(null);
         setRadiusMeters("80");
@@ -295,6 +302,48 @@ function ShopForm({
             onChange={(event) => setName(event.target.value)}
             required
           />
+        </label>
+
+        <label className="grid gap-1.5 text-sm font-medium">
+          店铺 Logo / 头像
+          <div className="flex items-center gap-3 rounded border border-ink/10 bg-surface p-3">
+            {logoData ? (
+              <img src={logoData} alt="店铺 Logo 预览" className="size-14 shrink-0 rounded object-cover" />
+            ) : (
+              <span className="grid size-14 shrink-0 place-items-center rounded bg-panel text-ink/40">
+                <ImageIcon size={22} />
+              </span>
+            )}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="min-w-0 flex-1 text-sm font-normal"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (!file) return;
+                if (!file.type.match(/^image\/(png|jpe?g|webp)$/)) {
+                  setError("Logo 只支持 PNG、JPG 或 WebP 图片");
+                  event.currentTarget.value = "";
+                  return;
+                }
+                if (file.size > MAX_LOGO_BYTES) {
+                  setError("店铺 Logo 不能超过 512 KB");
+                  event.currentTarget.value = "";
+                  return;
+                }
+                const reader = new FileReader();
+                reader.onload = () => {
+                  if (typeof reader.result === "string") {
+                    setLogoData(reader.result);
+                    setError(null);
+                  }
+                };
+                reader.onerror = () => setError("读取 Logo 失败，请重试");
+                reader.readAsDataURL(file);
+              }}
+            />
+          </div>
+          <span className="text-xs font-normal text-ink/50">支持 PNG、JPG、WebP，最大 512 KB</span>
         </label>
 
         <div>

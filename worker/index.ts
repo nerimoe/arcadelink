@@ -500,12 +500,13 @@ app.post("/api/merchant/shops", async (c) => {
   const publicId = randomToken(8);
   await c.env.DB.batch([
     c.env.DB.prepare(
-      "INSERT INTO shops (id, public_id, name, latitude, longitude, radius_meters, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    ).bind(shopId, publicId, body.name, body.latitude, body.longitude, clampShopRadius(body.radiusMeters), user.id),
+      "INSERT INTO shops (id, public_id, name, logo_data, latitude, longitude, radius_meters, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    ).bind(shopId, publicId, body.name, body.logoData ?? null, body.latitude, body.longitude, clampShopRadius(body.radiusMeters), user.id),
     c.env.DB.prepare("INSERT INTO shop_members (id, shop_id, user_id, role) VALUES (?, ?, ?, 'owner')")
       .bind(crypto.randomUUID(), shopId, user.id),
   ]);
-  return c.json({ shop: { id: shopId, publicId, ...body, radiusMeters: clampShopRadius(body.radiusMeters) } }, 201);
+  const { logoData, ...shop } = body;
+  return c.json({ shop: { id: shopId, publicId, ...shop, logoUrl: logoData ?? null } }, 201);
 });
 
 app.patch("/api/merchant/shops/:id", async (c) => {
@@ -528,6 +529,7 @@ app.patch("/api/merchant/shops/:id", async (c) => {
   await c.env.DB.prepare(
     `UPDATE shops
      SET name = COALESCE(?, name),
+         logo_data = COALESCE(?, logo_data),
          latitude = COALESCE(?, latitude),
          longitude = COALESCE(?, longitude),
          radius_meters = COALESCE(?, radius_meters),
@@ -536,6 +538,7 @@ app.patch("/api/merchant/shops/:id", async (c) => {
   )
     .bind(
       body.name ?? null,
+      body.logoData ?? null,
       body.latitude ?? null,
       body.longitude ?? null,
       radius,
@@ -544,7 +547,7 @@ app.patch("/api/merchant/shops/:id", async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, public_id AS publicId, name, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
+    "SELECT id, public_id AS publicId, name, logo_data AS logoUrl, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
   )
     .bind(shopId)
     .first();

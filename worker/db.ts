@@ -13,13 +13,13 @@ export async function listShopsForUser(c: Context<AppBindings>, user: AuthUser):
   if (user.role === "admin") {
     return (
       await c.env.DB.prepare(
-        "SELECT id, public_id AS publicId, name, latitude, longitude, radius_meters, created_by FROM shops ORDER BY created_at DESC",
+        "SELECT id, public_id AS publicId, name, logo_data AS logoUrl, latitude, longitude, radius_meters, created_by FROM shops ORDER BY created_at DESC",
       ).all<ShopRow>()
     ).results;
   }
   return (
     await c.env.DB.prepare(
-      `SELECT shops.id, shops.public_id AS publicId, shops.name, shops.latitude, shops.longitude,
+      `SELECT shops.id, shops.public_id AS publicId, shops.name, shops.logo_data AS logoUrl, shops.latitude, shops.longitude,
               shops.radius_meters, shops.created_by
        FROM shops
        JOIN shop_members ON shop_members.shop_id = shops.id
@@ -34,7 +34,7 @@ export async function listShopsForUser(c: Context<AppBindings>, user: AuthUser):
 export async function getMachineByPublicId(db: D1Database, publicId: string): Promise<MachineRow | null> {
   return db
     .prepare(
-      `SELECT machines.*, shops.name AS shop_name, shops.latitude, shops.longitude, shops.radius_meters
+      `SELECT machines.*, shops.name AS shop_name, shops.logo_data AS shop_logo_data, shops.latitude, shops.longitude, shops.radius_meters
               , shops.public_id AS shop_public_id
        FROM machines
        JOIN shops ON shops.id = machines.shop_id

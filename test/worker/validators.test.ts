@@ -120,6 +120,26 @@ describe("createShopSchema", () => {
       })
     ).toThrow("允许距离最大为 1000 米");
   });
+
+  it("accepts small raster logo data and rejects SVG data", () => {
+    expect(
+      createShopSchema.parse({
+        name: "店铺",
+        logoData: "data:image/png;base64,aGVsbG8=",
+        latitude: 35.0,
+        longitude: 139.0,
+      }).logoData,
+    ).toBe("data:image/png;base64,aGVsbG8=");
+
+    expect(() =>
+      createShopSchema.parse({
+        name: "店铺",
+        logoData: "data:image/svg+xml;base64,PHN2Zy8+",
+        latitude: 35.0,
+        longitude: 139.0,
+      }),
+    ).toThrow("Logo 只支持 PNG、JPG 或 WebP 图片");
+  });
 });
 
 describe("patchShopSchema", () => {
