@@ -6,7 +6,56 @@ import { useAuth } from "./AuthContext";
 import { MapPicker } from "./MapPicker";
 import { RequireLogin } from "./RequireLogin";
 
-const MAX_LOGO_BYTES = 512 * 1024;
+const MAX_LOGO_INPUT_BYTES = 8 * 1024 * 1024;
+const MAX_LOGO_DATA_LENGTH = 700_000;
+const LOGO_SIZE = 512;
+
+function cropLogo(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("读取 Logo 失败，请重试"));
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      if (!dataUrl) {
+        reject(new Error("读取 Logo 失败，请重试"));
+        return;
+      }
+
+      const image = new Image();
+      image.onerror = () => reject(new Error("无法读取这张图片，请换一张试试"));
+      image.onload = () => {
+        const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+        const canvas = document.createElement("canvas");
+        canvas.width = LOGO_SIZE;
+        canvas.height = LOGO_SIZE;
+        const context = canvas.getContext("2d");
+        if (!context || !sourceSize) {
+          reject(new Error("无法处理这张图片，请换一张试试"));
+          return;
+        }
+
+        const sourceX = (image.naturalWidth - sourceSize) / 2;
+        const sourceY = (image.naturalHeight - sourceSize) / 2;
+        context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, LOGO_SIZE, LOGO_SIZE);
+
+        let result = canvas.toDataURL("image/webp", 0.88);
+        if (!result.startsWith("data:image/webp") || result.length > MAX_LOGO_DATA_LENGTH) {
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, LOGO_SIZE, LOGO_SIZE);
+          context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, LOGO_SIZE, LOGO_SIZE);
+          result = canvas.toDataURL("image/jpeg", 0.82);
+        }
+        if (result.length > MAX_LOGO_DATA_LENGTH) {
+          reject(new Error("裁切后的 Logo 仍然过大，请换一张图片"));
+          return;
+        }
+        resolve(result);
+      };
+      image.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 export function MerchantPage() {
   const { user, refresh } = useAuth();
@@ -215,6 +264,7 @@ function ShopForm({
   const [radiusMeters, setRadiusMeters] = useState(
     String(shop?.radiusMeters ?? shop?.radius_meters ?? 80),
   );
+  const [logoBusy, setLogoBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -237,6 +287,10 @@ function ShopForm({
     const radius = Number(radiusMeters);
     if (!Number.isFinite(radius) || radius < 30 || radius > 1000) {
       setError("允许打卡距离必须在 30 到 1000 米之间");
+      return;
+    }
+    if (logoBusy) {
+      setError("Logo 正在处理，请稍候");
       return;
     }
     setBusy(true);
@@ -306,44 +360,47 @@ function ShopForm({
 
         <label className="grid gap-1.5 text-sm font-medium">
           店铺 Logo / 头像
-          <div className="flex items-center gap-3 rounded border border-ink/10 bg-surface p-3">
+          <div className="flex items-center gap-4 rounded border border-ink/10 bg-surface p-3">
             {logoData ? (
-              <img src={logoData} alt="店铺 Logo 预览" className="size-14 shrink-0 rounded object-cover" />
+              <img src={logoData} alt="店铺 Logo 预览" className="size-20 shrink-0 rounded-xl object-cover" />
             ) : (
-              <span className="grid size-14 shrink-0 place-items-center rounded bg-panel text-ink/40">
+              <span className="grid size-20 shrink-0 place-items-center rounded-xl bg-panel text-ink/40">
                 <ImageIcon size={22} />
               </span>
             )}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="min-w-0 flex-1 text-sm font-normal"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                if (!file) return;
-                if (!file.type.match(/^image\/(png|jpe?g|webp)$/)) {
-                  setError("Logo 只支持 PNG、JPG 或 WebP 图片");
-                  event.currentTarget.value = "";
-                  return;
-                }
-                if (file.size > MAX_LOGO_BYTES) {
-                  setError("店铺 Logo 不能超过 512 KB");
-                  event.currentTarget.value = "";
-                  return;
-                }
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === "string") {
-                    setLogoData(reader.result);
-                    setError(null);
+            <div className="min-w-0 flex-1">
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="min-w-0 max-w-full text-sm font-normal"
+                disabled={logoBusy}
+                onChange={(event) => {
+                  const input = event.currentTarget;
+                  const file = input.files?.[0];
+                  input.value = "";
+                  if (!file) return;
+                  if (!file.type.match(/^image\/(png|jpe?g|webp)$/)) {
+                    setError("Logo 只支持 PNG、JPG 或 WebP 图片");
+                    return;
                   }
-                };
-                reader.onerror = () => setError("读取 Logo 失败，请重试");
-                reader.readAsDataURL(file);
-              }}
-            />
+                  if (file.size > MAX_LOGO_INPUT_BYTES) {
+                    setError("原图不能超过 8 MB");
+                    return;
+                  }
+                  setLogoBusy(true);
+                  setError(null);
+                  void cropLogo(file)
+                    .then(setLogoData)
+                    .catch((caught) => setError(caught instanceof Error ? caught.message : "处理 Logo 失败"))
+                    .finally(() => setLogoBusy(false));
+                }}
+              />
+              <p className="mt-2 text-xs text-ink/55">
+                {logoBusy ? "正在裁切并压缩..." : "上传后自动居中裁切为正方形，并显示预览"}
+              </p>
+            </div>
           </div>
-          <span className="text-xs font-normal text-ink/50">支持 PNG、JPG、WebP，最大 512 KB</span>
+          <span className="text-xs font-normal text-ink/50">支持 PNG、JPG、WebP；原图最大 8 MB，保存后的 Logo 不超过 512 KB</span>
         </label>
 
         <div>
@@ -402,7 +459,7 @@ function ShopForm({
           </span>
         </label>
         <div className="flex gap-2">
-          <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy}>
+          <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy || logoBusy}>
             {shop ? <Save size={18} /> : <Plus size={18} />}
             {shop ? "保存修改" : "保存店铺"}
           </button>

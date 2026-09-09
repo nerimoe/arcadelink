@@ -46,6 +46,10 @@ const app = new Hono<AppBindings>();
 const oauthStateCookie = "arcadelink_munet_state";
 const oauthNextCookie = "arcadelink_munet_next";
 
+function shopLogoPath(publicId: string): string {
+  return `/api/shops/${encodeURIComponent(publicId)}/logo`;
+}
+
 app.use(
   "*",
   cors({
@@ -73,6 +77,27 @@ app.use("*", async (c, next) => {
 app.use("*", attachUser);
 
 app.get("/api/health", (c) => c.json({ ok: true }));
+
+app.get("/api/shops/:publicId/logo", async (c) => {
+  const row = await c.env.DB.prepare("SELECT logo_data AS logoData FROM shops WHERE public_id = ?")
+    .bind(c.req.param("publicId"))
+    .first<{ logoData: string | null }>();
+  const match = row?.logoData?.match(/^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (!match) return new Response(null, { status: 404 });
+
+  const mimeType = match[1];
+  const encoded = match[2];
+  if (!mimeType || !encoded) return new Response(null, { status: 404 });
+
+  const binary = atob(encoded);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new Response(bytes, {
+    headers: {
+      "cache-control": "public, max-age=60, must-revalidate",
+      "content-type": mimeType,
+    },
+  });
+});
 
 app.get("/.well-known/apple-app-site-association", (c) => {
   return appleAppSiteAssociationResponse(c.env.APPLE_TEAM_ID);
@@ -506,7 +531,7 @@ app.post("/api/merchant/shops", async (c) => {
       .bind(crypto.randomUUID(), shopId, user.id),
   ]);
   const { logoData, ...shop } = body;
-  return c.json({ shop: { id: shopId, publicId, ...shop, logoUrl: logoData ?? null } }, 201);
+  return c.json({ shop: { id: shopId, publicId, ...shop, logoUrl: logoData ? shopLogoPath(publicId) : null } }, 201);
 });
 
 app.patch("/api/merchant/shops/:id", async (c) => {
@@ -547,7 +572,7 @@ app.patch("/api/merchant/shops/:id", async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, public_id AS publicId, name, logo_data AS logoUrl, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
+    "SELECT id, public_id AS publicId, name, CASE WHEN logo_data IS NULL OR logo_data = '' THEN NULL ELSE '/api/shops/' || public_id || '/logo' END AS logoUrl, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
   )
     .bind(shopId)
     .first();

@@ -14,6 +14,7 @@ export function MachineLoginPage() {
   const { user, loading, refresh } = useAuth();
   const [machine, setMachine] = useState<PublicMachine | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
+  const [cardsLoading, setCardsLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "locating" | "sending" | "sent" | "destroyed">("idle");
   const [countdown, setCountdown] = useState(3);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
@@ -36,14 +37,18 @@ export function MachineLoginPage() {
   }, [ticket, queryError]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !machine) {
+      setCards([]);
+      setCardsLoading(false);
+      return;
+    }
+    setCardsLoading(true);
     Api.cards().then((result) => {
       const activeCards = result.cards.filter((card) => !card.disabledAt);
       setCards(activeCards);
-    });
-  }, [user]);
-
-  const title = machine ? `${machine.shop.name} / ${machine.name}` : "ArcadeLink";
+    }).catch(() => setError("无法加载卡片"))
+      .finally(() => setCardsLoading(false));
+  }, [machine, user]);
 
   const loginWithPasskey = async () => {
     setPasskeyBusy(true);
@@ -139,152 +144,177 @@ export function MachineLoginPage() {
       </Panel>
     );
   }
+  if (!machine) {
+    return (
+      <section className="mx-auto max-w-lg py-3">
+        <div className="flex min-h-28 items-center justify-center gap-3 rounded-2xl border border-ink/10 bg-panel p-6 text-sm text-ink/65 shadow-soft">
+          <Loader2 size={20} className="animate-spin text-mint" />
+          正在加载机台信息...
+        </div>
+      </section>
+    );
+  }
 
   const munetNext = ticket ? `/m?ticket=${encodeURIComponent(ticket)}` : "/m";
 
   return (
-    <section className="mx-auto max-w-lg py-3">
-      <div className="rounded border border-ink/10 bg-panel p-5 shadow-soft">
-        <div className="flex items-start gap-3">
-          <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded bg-ink text-canvas">
-            {machine?.shop.logoUrl ? (
-              <img src={machine.shop.logoUrl} alt={`${machine.shop.name} Logo`} className="size-full object-cover" />
-            ) : (
-              <Gamepad2 size={24} />
-            )}
-          </span>
-          <div>
-            <h1 className="text-2xl font-semibold leading-tight">{title}</h1>
-          </div>
-        </div>
-
-        {!user ? (
-          <div className="mt-8 grid gap-3">
-            <p className="text-sm font-medium text-ink/70">登录账号后即可登录：</p>
-            {passkeyError && (
-              <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
-                {passkeyError}
-              </p>
-            )}
-            <a
-              className="focus-ring flex min-h-12 items-center justify-center gap-2 rounded bg-ink px-4 font-semibold text-canvas"
-              href={`/api/auth/munet?next=${encodeURIComponent(munetNext)}`}
-            >
-              <img src="/munet-logo.png" alt="" className="size-5 object-contain" />
-              使用 MuNET 登录
-            </a>
-            {browserSupportsWebAuthn() && (
-              <button
-                className="focus-ring flex min-h-12 w-full items-center justify-center gap-2 rounded border border-ink/15 bg-surface px-4 font-semibold text-ink disabled:opacity-60"
-                disabled={passkeyBusy}
-                onClick={loginWithPasskey}
-              >
-                <Fingerprint size={18} />
-                {passkeyBusy ? "正在验证 Passkey..." : "使用 Passkey 登录"}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="mt-8 grid gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-ink/70">选择卡片</p>
-              <Link to="/cards" className="text-xs text-mint hover:underline">
-                管理卡片
-              </Link>
+    <section className="mx-auto max-w-lg py-2 sm:py-5">
+      <div className="overflow-hidden rounded-2xl border border-ink/10 bg-panel shadow-soft">
+        <header className="border-b border-ink/10 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex items-center gap-4">
+            <span className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-ink text-canvas shadow-sm sm:size-24">
+              {machine.shop.logoUrl ? (
+                <img
+                  src={machine.shop.logoUrl}
+                  alt={`${machine.shop.name} Logo`}
+                  className="size-full object-cover"
+                  decoding="async"
+                />
+              ) : (
+                <Gamepad2 size={30} />
+              )}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium tracking-wide text-ink/55">{machine.shop.name}</p>
+              <h1 className="mt-1 truncate text-xl font-semibold leading-tight text-ink sm:text-2xl">{machine.name}</h1>
             </div>
+          </div>
+        </header>
 
-            {error && (
-              <p className="flex items-center gap-2 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
-                <ShieldAlert size={16} className="shrink-0" />
-                {error}
-              </p>
-            )}
-
-            {cards.length === 0 ? (
-              <div className="rounded border border-dashed border-ink/20 bg-surface p-6 text-center">
-                <p className="text-sm text-ink/60">还没有添加卡片</p>
-                <Link
-                  className="focus-ring mt-3 inline-flex items-center gap-1 rounded bg-ink px-4 py-2 text-sm font-medium text-canvas"
-                  to="/cards"
+        <div className="p-4 sm:p-5">
+          {!user ? (
+            <div className="grid gap-2.5">
+              <p className="text-sm font-medium text-ink/70">登录账号后即可登录这台机台</p>
+              {passkeyError && (
+                <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
+                  {passkeyError}
+                </p>
+              )}
+              <a
+                className="focus-ring flex min-h-12 items-center justify-center gap-2 rounded-xl bg-ink px-4 font-semibold text-canvas transition-transform active:scale-[.99]"
+                href={`/api/auth/munet?next=${encodeURIComponent(munetNext)}`}
+              >
+                <img src="/munet-logo.png" alt="" className="size-5 object-contain" />
+                使用 MuNET 登录
+              </a>
+              {browserSupportsWebAuthn() && (
+                <button
+                  className="focus-ring flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-ink/15 bg-surface px-4 font-semibold text-ink transition-transform active:scale-[.99] disabled:opacity-60"
+                  disabled={passkeyBusy}
+                  onClick={loginWithPasskey}
                 >
-                  先添加一张卡片
+                  <Fingerprint size={18} />
+                  {passkeyBusy ? "正在验证 Passkey..." : "使用 Passkey 登录"}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-ink/70">选择卡片登录</p>
+                <Link to="/cards" className="text-xs text-mint hover:underline">
+                  管理卡片
                 </Link>
               </div>
-            ) : (
-              <div className="grid gap-2.5">
-                {cards.map((card) => {
-                  const isThisCard = activeCardId === card.id;
-                  const isBusy = status !== "idle" && isThisCard;
-                  const isSuccess = status === "sent" && isThisCard;
-                  const isDisabled = status !== "idle" && !isThisCard;
 
-                  return (
-                    <button
-                      key={card.id}
-                      type="button"
-                      disabled={status !== "idle"}
-                      onClick={() => loginWithCard(card.id)}
-                      className={`focus-ring flex min-h-16 w-full items-center justify-between gap-3 rounded border p-4 text-left transition-all ${
-                        isSuccess
-                          ? "border-mint bg-mint/10 text-mint"
-                          : isThisCard
-                          ? "border-ink bg-surface shadow-soft"
-                          : "border-ink/10 bg-surface hover:border-ink/25 hover:shadow-soft"
-                      } disabled:cursor-not-allowed ${isDisabled ? "opacity-40" : ""}`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span
-                          className={`grid size-10 shrink-0 place-items-center rounded ${
-                            isSuccess ? "bg-mint text-white" : "bg-panel text-ink"
-                          }`}
-                        >
+              {error && (
+                <p className="flex items-center gap-2 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
+                  <ShieldAlert size={16} className="shrink-0" />
+                  {error}
+                </p>
+              )}
+
+              {cardsLoading ? (
+                <div className="flex items-center justify-center gap-2 rounded-xl border border-ink/10 bg-surface py-7 text-sm text-ink/60">
+                  <Loader2 size={18} className="animate-spin" />
+                  正在加载卡片...
+                </div>
+              ) : cards.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-ink/20 bg-surface p-5 text-center">
+                  <p className="text-sm text-ink/60">还没有添加卡片</p>
+                  <Link
+                    className="focus-ring mt-3 inline-flex items-center gap-1 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-canvas"
+                    to="/cards"
+                  >
+                    先添加一张卡片
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  {cards.map((card) => {
+                    const isThisCard = activeCardId === card.id;
+                    const isBusy = status !== "idle" && isThisCard;
+                    const isSuccess = status === "sent" && isThisCard;
+                    const isDisabled = status !== "idle" && !isThisCard;
+
+                    return (
+                      <button
+                        key={card.id}
+                        type="button"
+                        disabled={status !== "idle"}
+                        onClick={() => loginWithCard(card.id)}
+                        className={`focus-ring flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                          isSuccess
+                            ? "border-mint bg-mint/10 text-mint"
+                            : isThisCard
+                            ? "border-ink bg-surface shadow-soft"
+                            : "border-ink/10 bg-surface hover:border-ink/25 hover:shadow-soft"
+                        } disabled:cursor-not-allowed ${isDisabled ? "opacity-40" : ""}`}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span
+                            className={`grid size-9 shrink-0 place-items-center rounded-lg ${
+                              isSuccess ? "bg-mint text-white" : "bg-panel text-ink"
+                            }`}
+                          >
+                            {isSuccess ? (
+                              <CheckCircle2 size={19} />
+                            ) : isBusy ? (
+                              status === "locating" ? (
+                                <LocateFixed size={19} className="animate-pulse text-ink/60" />
+                              ) : (
+                                <Loader2 size={19} className="animate-spin text-ink/60" />
+                              )
+                            ) : (
+                              <CreditCard size={19} />
+                            )}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-ink">{card.label}</p>
+                            <p className="font-mono text-xs text-ink/50">尾号 {card.accessCode.slice(-4)}</p>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 text-right">
                           {isSuccess ? (
-                            <CheckCircle2 size={20} />
+                            <span className="text-sm font-semibold text-mint">已登录 ({countdown}s)</span>
                           ) : isBusy ? (
                             status === "locating" ? (
-                              <LocateFixed size={20} className="animate-pulse text-ink/60" />
+                              <span className="flex items-center gap-1 text-xs font-medium text-ink/70">
+                                <LocateFixed size={14} className="animate-pulse" />
+                                确认位置...
+                              </span>
                             ) : (
-                              <Loader2 size={20} className="animate-spin text-ink/60" />
+                              <span className="flex items-center gap-1 text-xs font-medium text-ink/70">
+                                <Loader2 size={14} className="animate-spin" />
+                                正在登录...
+                              </span>
                             )
                           ) : (
-                            <CreditCard size={20} />
+                            <span className="focus-ring inline-flex items-center gap-1 rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-canvas">
+                              <CreditCard size={14} />
+                              登录
+                            </span>
                           )}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-ink">{card.label}</p>
-                          <p className="font-mono text-xs text-ink/50">尾号 {card.accessCode.slice(-4)}</p>
                         </div>
-                      </div>
-
-                      <div className="shrink-0 text-right">
-                        {isSuccess ? (
-                          <span className="text-sm font-semibold text-mint">已登录 ({countdown}s)</span>
-                        ) : isBusy ? (
-                          status === "locating" ? (
-                            <span className="flex items-center gap-1 text-xs font-medium text-ink/70">
-                              <LocateFixed size={14} className="animate-pulse" />
-                              确认位置...
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs font-medium text-ink/70">
-                              <Loader2 size={14} className="animate-spin" />
-                              正在登录...
-                            </span>
-                          )
-                        ) : (
-                          <span className="focus-ring inline-flex items-center gap-1 rounded bg-ink px-3.5 py-1.5 text-xs font-semibold text-canvas">
-                            <CreditCard size={14} />
-                            登录
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
