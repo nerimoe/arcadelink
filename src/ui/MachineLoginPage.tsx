@@ -25,7 +25,6 @@ export function MachineLoginPage() {
   const [reload, setReload] = useState(0);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
-  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (expired) {
@@ -70,7 +69,7 @@ export function MachineLoginPage() {
     } catch (caught) {
       const message = passkeyErrorMessage(caught);
       if (/cancel|abort|取消/i.test(message)) return;
-      setPasskeyError(message);
+      window.alert(message);
     } finally {
       setPasskeyBusy(false);
     }
@@ -107,7 +106,7 @@ export function MachineLoginPage() {
       setActiveCardId(null);
       const message = friendlyLoginError(caught);
       if (message === "请到店再进行登录" || message === "需要定位权限才能确认你在店内" || message.includes("机台暂时不可用")) {
-        setAlertMessage(message);
+        window.alert(message);
       } else setError(message);
     }
   };
@@ -146,7 +145,6 @@ export function MachineLoginPage() {
       <div className="session-task">
         {user && !completed ? <div className="session-task-row"><h2>选择卡片</h2><button type="button" className="session-logout-button" aria-label="退出账号" onClick={() => { if (window.confirm("确定退出当前账号吗？")) void logout(); }}><LogOut size={20} strokeWidth={2.2} /></button></div> : !machine ? error ? <h2>无法进入机台会话</h2> : <h2>正在加载…</h2> : completed && <h2>{title}</h2>}
         <div aria-live="polite" aria-atomic="true">
-          {!user && (error || passkeyError) && <p className="session-error">{error || passkeyError}</p>}
           {completed && <p className="session-subtitle">可以关闭此页面</p>}
         </div>
       </div>
@@ -187,7 +185,6 @@ export function MachineLoginPage() {
           <button className="session-action mt-6 w-full" onClick={() => { setError(null); setReload(value => value + 1); }}>重新加载卡片</button>
         </div>
       ))}
-      {alertMessage && <div className="session-alert" role="alertdialog" aria-modal="true"><div><p>{alertMessage}</p><button className="session-action primary" onClick={() => setAlertMessage(null)}>知道了</button></div></div>}
     </section>
   );
 }
