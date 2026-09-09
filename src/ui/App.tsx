@@ -60,6 +60,7 @@ function Shell() {
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/m" element={<MachineLoginPage />} />
+            <Route path="/m/expired" element={<MachineLoginPage />} />
             <Route path="/m/:ticket" element={<MachineLoginPage />} />
           </Routes>
         </Suspense>

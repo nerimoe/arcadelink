@@ -124,6 +124,9 @@ input::placeholder {
 .session-task h2 { font-size: clamp(28px, 7vw, 32px); line-height: 1.25; font-weight: 700; letter-spacing: -.6px; }
 .session-subtitle { margin-top: 10px; font-size: 17px; line-height: 1.5; color: rgb(var(--color-ink) / .68); }
 .session-error { margin: 16px 0 0; color: var(--color-coral); font-size: 16px; line-height: 1.5; }
+.session-expired { margin-top: 96px; text-align: center; }
+.session-expired h1 { font-size: 30px; font-weight: 700; }
+.session-expired p { margin-top: 12px; color: rgb(var(--color-ink) / .68); font-size: 17px; }
 .session-actions { display: grid; gap: 14px; }
 .session-action { display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 58px; border-radius: 999px; padding: 14px 24px; background: rgb(var(--color-ink) / .065); font-size: 18px; font-weight: 600; text-align: center; }
 .session-action.primary { background: var(--color-mint); color: #fff; }

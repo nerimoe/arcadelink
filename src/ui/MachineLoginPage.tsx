@@ -11,6 +11,7 @@ export function MachineLoginPage() {
   const [searchParams] = useSearchParams();
   const ticket = searchParams.get("ticket") || paramTicket || publicId;
   const queryError = searchParams.get("error");
+  const expired = window.location.pathname === "/m/expired" || searchParams.get("expired") === "1";
   const { user, loading, refresh } = useAuth();
   const [machine, setMachine] = useState<PublicMachine | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
@@ -26,6 +27,10 @@ export function MachineLoginPage() {
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (expired) {
+      setError("本次会话已失效");
+      return;
+    }
     setHeroFailed(false);
     if (queryError) {
       setError(queryError);
@@ -38,7 +43,7 @@ export function MachineLoginPage() {
     Api.publicMachine(ticket)
       .then((result) => setMachine(result.machine))
       .catch(() => setError("这台机台暂时不可用，请稍后重试"));
-  }, [ticket, queryError]);
+  }, [ticket, queryError, expired]);
 
   useEffect(() => {
     if (!user || !machine) {
@@ -70,8 +75,8 @@ export function MachineLoginPage() {
 
   const loginWithCard = async (cardId: string) => {
     if (status !== "idle") return;
-    if (!ticket) {
-      setError("本次会话已失效");
+    if (!ticket || expired) {
+      window.location.replace("/m/expired");
       return;
     }
     setError(null);
@@ -91,6 +96,10 @@ export function MachineLoginPage() {
       setCountdown(3);
       setStatus("sent");
     } catch (caught) {
+      if (caught instanceof Error && (caught.message.includes("会话已失效") || caught.message.includes("缺少会话凭证"))) {
+        window.location.replace("/m/expired");
+        return;
+      }
       setStatus("idle");
       setActiveCardId(null);
       setError(friendlyLoginError(caught));
@@ -118,7 +127,7 @@ export function MachineLoginPage() {
 
   return (
     <section className="machine-session" aria-busy={loading || (!machine && !error)}>
-      {machine ? (
+      {expired ? <div className="session-expired"><h1>本次会话已失效</h1><p>请重新碰一下 NFC 或重新扫描二维码。</p></div> : machine ? (
         <header className="machine-hero">
           {machine.shop.heroUrl && !heroFailed && <img src={machine.shop.heroUrl} alt="" decoding="async" onError={() => setHeroFailed(true)} />}
           <div className="machine-hero-info">

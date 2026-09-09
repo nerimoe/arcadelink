@@ -399,7 +399,7 @@ app.get("/t/:shopCode/:publicId", async (c) => {
     return c.redirect(`/m?ticket=${encodeURIComponent(session.ticket)}`, 302);
   } catch (error) {
     if (error instanceof HTTPException && error.status === 404) {
-      return c.redirect(`/m?error=${encodeURIComponent("机台不可用")}`, 302);
+      return c.redirect(`/m/error?error=${encodeURIComponent("机台不可用")}`, 302);
     }
     throw error;
   }
