@@ -175,8 +175,8 @@ export function MachineLoginPage() {
               )}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-xs font-medium tracking-wide text-ink/55">{machine.shop.name}</p>
-              <h1 className="mt-1 truncate text-xl font-semibold leading-tight text-ink sm:text-2xl">{machine.name}</h1>
+              <p className="break-words text-base font-semibold leading-snug text-ink/70 sm:text-lg">{machine.shop.name}</p>
+              <h1 className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-ink sm:text-3xl">{machine.name}</h1>
             </div>
           </div>
         </header>

@@ -10,6 +10,7 @@
   --color-ink: 23 32 31;
   --color-mint: #107c72;
   --color-coral: #d94f45;
+  --radius: 0.75rem;
   --shadow-soft: 0 18px 60px rgba(23, 32, 31, 0.12);
 
   color: #17201f;
@@ -52,6 +53,16 @@ input::placeholder {
 
 .focus-ring {
   @apply focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 focus:ring-offset-panel;
+}
+
+/* Keep every regular surface/control corner consistent; circles stay circular. */
+.rounded,
+.rounded-sm,
+.rounded-md,
+.rounded-lg,
+.rounded-xl,
+.rounded-2xl {
+  border-radius: var(--radius);
 }
 
 .leaflet-container {
