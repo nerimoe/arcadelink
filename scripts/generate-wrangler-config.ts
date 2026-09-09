@@ -63,7 +63,7 @@ const config = {
   routes: routePattern
     ? [
         {
-          pattern: routePattern,
+          pattern: routePattern.replace(/\/\*$/, ""),
           custom_domain: true,
         },
       ]
