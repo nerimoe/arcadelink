@@ -121,6 +121,14 @@ export type Passkey = {
   lastUsedAt?: string | null;
 };
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+
+  get sessionExpired(): boolean {
+    return this.message === "本次会话已失效" || this.message === "缺少会话凭证";
+  }
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...options,
@@ -131,7 +139,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     },
   });
   const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
+  if (!response.ok) throw new ApiError(payload.error || `Request failed (${response.status})`, response.status);
   return payload;
 }
 

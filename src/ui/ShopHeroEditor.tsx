@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 
 export function ShopHeroEditor({ value, onChange, onBusy }: {
@@ -5,6 +6,7 @@ export function ShopHeroEditor({ value, onChange, onBusy }: {
   onChange: (value: string | null) => void;
   onBusy: (busy: boolean) => void;
 }) {
+  const { t, errorText } = useI18n();
   const canvas = useRef<HTMLCanvasElement>(null);
   const [source, setSource] = useState<HTMLImageElement | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -67,29 +69,29 @@ export function ShopHeroEditor({ value, onChange, onBusy }: {
 
   return (
     <fieldset className="hero-editor grid min-w-0 gap-3">
-      <legend className="mb-2 text-base font-semibold">店铺封面</legend>
-      <p className="text-sm text-ink/70">用于机台登录页展示店铺环境、品牌或游戏氛围。建议使用横向照片或插画，避免二维码、价格表和大段文字。推荐尺寸 1800×1200。</p>
+      <legend className="mb-2 text-base font-semibold">{t("店铺封面")}</legend>
+      <p className="text-sm text-ink/70">{t("用于机台登录页展示店铺环境、品牌或游戏氛围。建议使用横向照片或插画，避免二维码、价格表和大段文字。推荐尺寸 1800×1200。")}</p>
       {source ? <>
-        <canvas ref={canvas} width={1200} height={800} className="aspect-[3/2] w-full rounded-2xl" aria-label="3:2 封面裁剪预览" />
-        {source.naturalWidth < 1200 || source.naturalHeight < 800 ? <p className="text-sm text-ink/70">原图较小，建议至少使用 1200×800 的图片。</p> : null}
-        <label className="grid gap-1 text-sm">缩放<input type="range" min={1} max={3} step={0.01} value={zoom} onChange={e => setZoom(Number(e.target.value))} /></label>
-        <label className="grid gap-1 text-sm">水平位置<input type="range" min={0} max={100} value={x} onChange={e => setX(Number(e.target.value))} /></label>
-        <label className="grid gap-1 text-sm">垂直位置<input type="range" min={0} max={100} value={y} onChange={e => setY(Number(e.target.value))} /></label>
+        <canvas ref={canvas} width={1200} height={800} className="aspect-[3/2] w-full rounded-2xl" aria-label={t("3:2 封面裁剪预览")} />
+        {source.naturalWidth < 1200 || source.naturalHeight < 800 ? <p className="text-sm text-ink/70">{t("原图较小，建议至少使用 1200×800 的图片。")}</p> : null}
+        <label className="grid gap-1 text-sm">{t("缩放")}<input type="range" min={1} max={3} step={0.01} value={zoom} onChange={e => setZoom(Number(e.target.value))} /></label>
+        <label className="grid gap-1 text-sm">{t("水平位置")}<input type="range" min={0} max={100} value={x} onChange={e => setX(Number(e.target.value))} /></label>
+        <label className="grid gap-1 text-sm">{t("垂直位置")}<input type="range" min={0} max={100} value={y} onChange={e => setY(Number(e.target.value))} /></label>
         <div className="flex gap-3">
-          <button type="button" className="session-action primary flex-1" onClick={save}>使用此封面</button>
-          <button type="button" className="session-action flex-1" onClick={() => { setSource(null); setError(null); }}>取消裁剪</button>
+          <button type="button" className="session-action primary flex-1" onClick={save}>{t("使用此封面")}</button>
+          <button type="button" className="session-action flex-1" onClick={() => { setSource(null); setError(null); }}>{t("取消裁剪")}</button>
         </div>
       </> : <>
-        {value && <img src={value} alt="店铺封面预览" className="aspect-[3/2] w-full rounded-2xl object-cover" />}
-        <label className="grid gap-2 text-sm font-medium">{value ? "更换封面" : "上传封面"}
+        {value && <img src={value} alt={t("店铺封面预览")} className="aspect-[3/2] w-full rounded-2xl object-cover" />}
+        <label className="grid gap-2 text-sm font-medium">{value ? t("更换封面") : t("上传封面")}
           <input type="file" accept="image/jpeg,image/png,image/webp" disabled={reading} onChange={e => {
             const file = e.currentTarget.files?.[0]; e.currentTarget.value = "";
             if (file) void select(file);
           }} />
         </label>
-        {value && <button type="button" className="focus-ring justify-self-start rounded-xl px-4 py-3 text-coral" onClick={() => onChange(null)}>移除封面</button>}
+        {value && <button type="button" className="focus-ring justify-self-start rounded-xl px-4 py-3 text-coral" onClick={() => onChange(null)}>{t("移除封面")}</button>}
       </>}
-      {error && <p role="alert" className="text-sm text-coral">{error}</p>}
+      {error && <p role="alert" className="text-sm text-coral">{errorText(error)}</p>}
     </fieldset>
   );
 }

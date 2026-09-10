@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Activity, Link2, Lock, Pencil, Plus, Save, Store, Terminal, Trash2, Users, X } from "lucide-react";
@@ -8,6 +9,7 @@ import { RequireLogin } from "./RequireLogin";
 import { ShopHeroEditor } from "./ShopHeroEditor";
 
 export function MerchantPage() {
+  const { t, errorText } = useI18n();
   const { user, refresh } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedShopId, setSelectedShopId] = useState("");
@@ -57,7 +59,7 @@ export function MerchantPage() {
 
   const deleteSelectedShop = async () => {
     if (!selectedShop || deletingShop) return;
-    if (!confirm(`确定要删除店铺「${selectedShop.name}」吗？\n此操作将同时删除该店铺下的所有机台与成员关联，且不可恢复。`)) return;
+    if (!confirm(t("确定要删除店铺「{name}」吗？\n此操作将同时删除该店铺下的所有机台与成员关联，且不可恢复。", { name: selectedShop.name }))) return;
     setDeletingShop(true);
     setError(null);
     try {
@@ -82,15 +84,14 @@ export function MerchantPage() {
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 font-semibold">
                   <Store size={18} />
-                  店铺
-                </h2>
+                  {t("店铺")}</h2>
                 <button
                   type="button"
                   className="focus-ring flex items-center gap-1 rounded border border-ink/15 bg-surface px-2.5 py-1 text-xs font-medium hover:bg-ink/5"
                   onClick={() => setShowShopForm((prev) => !prev)}
                 >
                   {showShopForm ? <X size={14} /> : <Plus size={14} />}
-                  {showShopForm ? "收起开店" : "新建店铺"}
+                  {showShopForm ? t("收起开店") : t("新建店铺")}
                 </button>
               </div>
               <select className="focus-ring min-h-11 w-full rounded border border-ink/10 bg-surface px-3" value={selectedShopId} onChange={(event) => setSelectedShopId(event.target.value)}>
@@ -116,7 +117,7 @@ export function MerchantPage() {
             />
           )}
 
-          {error && <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
+          {error && <p className="rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{errorText(error)}</p>}
 
           {selectedShop && (
             <>
@@ -129,11 +130,10 @@ export function MerchantPage() {
         <div className="order-1 grid content-start gap-6 lg:order-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold">{selectedShop?.name || "店家管理"}</h1>
+              <h1 className="text-2xl font-semibold">{selectedShop?.name || t("店家管理")}</h1>
               {selectedShop && (
                 <p className="mt-1 text-xs text-ink/60">
-                  坐标: {selectedShop.latitude.toFixed(6)}, {selectedShop.longitude.toFixed(6)} · 打卡范围: {selectedShop.radiusMeters ?? selectedShop.radius_meters ?? 80} 米
-                </p>
+                  {t("坐标：{lat}, {lng} · 打卡范围：{radius} 米", { lat: selectedShop.latitude.toFixed(6), lng: selectedShop.longitude.toFixed(6), radius: selectedShop.radiusMeters ?? selectedShop.radius_meters ?? 80 })}</p>
               )}
             </div>
             {selectedShop && isOwnerOrAdmin && (
@@ -142,21 +142,20 @@ export function MerchantPage() {
                   type="button"
                   className="focus-ring flex items-center gap-1.5 rounded border border-ink/20 px-3 py-1.5 text-xs font-medium text-ink hover:bg-ink/5"
                   onClick={() => setEditingShop((prev) => (prev?.id === selectedShop.id ? null : selectedShop))}
-                  title="修改店铺位置与信息"
+                  title={t("修改店铺位置与信息")}
                 >
                   <Pencil size={14} />
-                  {editingShop?.id === selectedShop.id ? "收起编辑" : "编辑店铺"}
+                  {editingShop?.id === selectedShop.id ? t("收起编辑") : t("编辑店铺")}
                 </button>
                 <button
                   type="button"
                   disabled={deletingShop}
                   className="focus-ring flex items-center gap-1.5 rounded border border-coral/30 px-3 py-1.5 text-xs font-medium text-coral hover:bg-coral/10 disabled:opacity-50"
                   onClick={deleteSelectedShop}
-                  title="删除店铺"
+                  title={t("删除店铺")}
                 >
                   <Trash2 size={14} />
-                  删除店铺
-                </button>
+                  {t("删除店铺")}</button>
               </div>
             )}
           </div>
@@ -175,15 +174,15 @@ export function MerchantPage() {
           {!selectedShop ? (
             <div className="rounded border border-dashed border-ink/20 bg-surface p-8 text-center text-ink/60">
               <Store size={32} className="mx-auto mb-2 text-ink/40" />
-              <p className="font-medium text-ink">还没有店铺</p>
+              <p className="font-medium text-ink">{t("还没有店铺")}</p>
               <p className="mt-1 text-sm">
-                {shops.length === 0 ? "填写店铺信息，创建你的第一家店铺" : "选择要管理的店铺"}
+                {shops.length === 0 ? t("填写店铺信息，创建你的第一家店铺") : t("选择要管理的店铺")}
               </p>
             </div>
           ) : (
             <>
               {machines.length === 0 ? (
-                <div className="rounded border border-dashed border-ink/20 bg-surface p-6 text-ink/60">暂无设备</div>
+                <div className="rounded border border-dashed border-ink/20 bg-surface p-6 text-ink/60">{t("暂无设备")}</div>
               ) : (
                 machines.map((machine) => <MachineCard key={machine.id} machine={machine} onChanged={() => selectedShop && loadShopDetails(selectedShop.id)} />)
               )}
@@ -207,6 +206,7 @@ function ShopForm({
   isCollapsible?: boolean;
   onCancel?: () => void;
 }) {
+  const { t, errorText } = useI18n();
   const [name, setName] = useState(shop?.name ?? "");
   const [heroData, setHeroData] = useState<string | null | undefined>(undefined);
   const [latitude, setLatitude] = useState<number | null>(shop?.latitude ?? null);
@@ -282,26 +282,25 @@ function ShopForm({
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-semibold">
           <Store size={21} />
-          {shop ? `编辑店铺「${shop.name}」` : isCollapsible ? "新建店铺" : "添加店铺"}
+          {shop ? t("编辑店铺「{name}」", { name: shop.name }) : isCollapsible ? t("新建店铺") : t("添加店铺")}
         </h2>
         {(isCollapsible || shop) && onCancel && (
           <button
             type="button"
             className="focus-ring rounded p-1 text-ink/60 hover:bg-ink/5"
             onClick={onCancel}
-            title="收起"
+            title={t("收起")}
           >
             <X size={18} />
           </button>
         )}
       </div>
-      {error && <p className="mt-3 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
+      {error && <p className="mt-3 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{errorText(error)}</p>}
       <div className="mt-4 grid gap-3">
         <label className="grid gap-1.5 text-sm font-medium">
-          店铺名称
-          <input
+          {t("店铺名称")}<input
             className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3 font-normal"
-            placeholder="例如：万达广场机厅"
+            placeholder={t("例如：万达广场机厅")}
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
@@ -311,27 +310,25 @@ function ShopForm({
         <ShopHeroEditor key={shop?.id ?? "new"} value={heroData === undefined ? shop?.heroUrl ?? null : heroData} onChange={setHeroData} onBusy={setHeroBusy} />
 
         <div>
-          <span className="mb-1.5 block text-sm font-medium">店铺位置</span>
+          <span className="mb-1.5 block text-sm font-medium">{t("店铺位置")}</span>
           <MapPicker latitude={latitude} longitude={longitude} onChange={(lat, lng) => {
             setLatitude(lat);
             setLongitude(lng);
           }} />
           <div className="mt-2 grid grid-cols-2 gap-3">
             <label className="grid gap-1 text-xs text-ink/70">
-              纬度 (Latitude)
-              <input
+              {t("纬度 (Latitude)")}<input
                 className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3 font-mono text-sm text-ink font-normal"
-                placeholder="点击地图或自动定位"
+                placeholder={t("点击地图或自动定位")}
                 value={latitude ?? ""}
                 onChange={(event) => setLatitude(parseCoordinate(event.target.value))}
                 required
               />
             </label>
             <label className="grid gap-1 text-xs text-ink/70">
-              经度 (Longitude)
-              <input
+              {t("经度 (Longitude)")}<input
                 className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3 font-mono text-sm text-ink font-normal"
-                placeholder="点击地图或自动定位"
+                placeholder={t("点击地图或自动定位")}
                 value={longitude ?? ""}
                 onChange={(event) => setLongitude(parseCoordinate(event.target.value))}
                 required
@@ -342,8 +339,8 @@ function ShopForm({
 
         <label className="grid gap-1.5 text-sm font-medium">
           <div className="flex items-center justify-between">
-            <span>允许打卡距离范围</span>
-            <span className="text-xs font-normal text-ink/50">30 ~ 1000 米</span>
+            <span>{t("允许打卡距离范围")}</span>
+            <span className="text-xs font-normal text-ink/50">{t("30 ~ 1000 米")}</span>
           </div>
           <div className="relative">
             <input
@@ -351,24 +348,22 @@ function ShopForm({
               min={30}
               max={1000}
               className="focus-ring min-h-11 w-full rounded border border-ink/10 bg-surface px-3 pr-10 font-normal"
-              placeholder="默认 80"
+              placeholder={t("默认 80")}
               value={radiusMeters}
               onChange={(event) => setRadiusMeters(event.target.value)}
               inputMode="numeric"
               required
             />
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink/50">
-              米
-            </span>
+              {t("米")}</span>
           </div>
           <span className="text-xs font-normal text-ink/50">
-            玩家扫码/碰卡打卡时，允许距离店铺中心点的最大距离偏差（默认 80 米）
-          </span>
+            {t("玩家扫码/碰卡打卡时，允许距离店铺中心点的最大距离偏差（默认 80 米）")}</span>
         </label>
         <div className="flex gap-2">
           <button className="focus-ring flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy || heroBusy}>
             {shop ? <Save size={18} /> : <Plus size={18} />}
-            {shop ? "保存修改" : "保存店铺"}
+            {shop ? t("保存修改") : t("保存店铺")}
           </button>
           {(isCollapsible || shop) && onCancel && (
             <button
@@ -376,8 +371,7 @@ function ShopForm({
               className="focus-ring rounded border border-ink/15 bg-surface px-4 font-medium text-ink hover:bg-ink/5"
               onClick={onCancel}
             >
-              取消
-            </button>
+              {t("取消")}</button>
           )}
         </div>
       </div>
@@ -392,6 +386,7 @@ function parseCoordinate(value: string): number | null {
 }
 
 function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => void | Promise<void> }) {
+  const { t, errorText } = useI18n();
   const [name, setName] = useState("");
   const [hinataUrl, setHinataUrl] = useState("");
   const [hinataPassword, setHinataPassword] = useState("");
@@ -425,30 +420,29 @@ function MachineForm({ shopId, onCreated }: { shopId: string; onCreated: () => v
     <form onSubmit={submit} className="rounded border border-ink/10 bg-panel p-5">
       <h2 className="flex items-center gap-2 font-semibold">
         <Terminal size={18} />
-        添加设备
-      </h2>
-      {error && <p className="mt-3 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
+        {t("添加设备")}</h2>
+      {error && <p className="mt-3 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{errorText(error)}</p>}
       <div className="mt-4 grid gap-3">
-        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="设备名称" value={name} onChange={(event) => setName(event.target.value)} required />
-        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="机台连接地址（如 https://... 或 wss://...）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder={t("设备名称")} value={name} onChange={(event) => setName(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder={t("机台连接地址（如 https://... 或 wss://...）")} value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} required />
         <input
           type="password"
           className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3"
-          placeholder="加密密码（可选）"
+          placeholder={t("加密密码（可选）")}
           value={hinataPassword}
           onChange={(event) => setHinataPassword(event.target.value)}
           autoComplete="new-password"
         />
         <button className="focus-ring flex min-h-11 items-center justify-center gap-2 rounded bg-mint px-4 font-medium text-white disabled:opacity-60" disabled={busy}>
           <Plus size={18} />
-          生成登录入口
-        </button>
+          {t("生成登录入口")}</button>
       </div>
     </form>
   );
 }
 
 function MembersPanel({ shopId, members, onChanged }: { shopId: string; members: ShopMember[]; onChanged: () => void | Promise<void> }) {
+  const { t, errorText } = useI18n();
   const [memberUser, setMemberUser] = useState("");
   const [role, setRole] = useState<ShopMember["role"]>("staff");
   const [busy, setBusy] = useState(false);
@@ -474,17 +468,16 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
     <section className="rounded border border-ink/10 bg-panel p-5">
       <h2 className="flex items-center gap-2 font-semibold">
         <Users size={18} />
-        店铺成员
-      </h2>
-      {error && <p className="mt-3 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
+        {t("店铺成员")}</h2>
+      {error && <p className="mt-3 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{errorText(error)}</p>}
       <form className="mt-4 grid gap-3" onSubmit={submit}>
-        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder="MuNET 用户名或 ID" value={memberUser} onChange={(event) => setMemberUser(event.target.value)} required />
+        <input className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" placeholder={t("MuNET 用户名或 ID")} value={memberUser} onChange={(event) => setMemberUser(event.target.value)} required />
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <select className="focus-ring min-h-11 rounded border border-ink/10 bg-surface px-3" value={role} onChange={(event) => setRole(event.target.value as ShopMember["role"])}>
-            <option value="staff">店员</option>
-            <option value="owner">负责人</option>
+            <option value="staff">{t("店员")}</option>
+            <option value="owner">{t("负责人")}</option>
           </select>
-          <button className="focus-ring rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy}>添加</button>
+          <button className="focus-ring rounded bg-ink px-4 font-medium text-canvas disabled:opacity-60" disabled={busy}>{t("添加")}</button>
         </div>
       </form>
       <div className="mt-4 grid gap-2">
@@ -492,10 +485,10 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
           <div key={member.id} className="flex items-center justify-between gap-3 rounded border border-ink/10 bg-surface p-3">
             <div className="min-w-0">
               <p className="truncate font-medium">{member.displayName}</p>
-              <p className="text-sm text-ink/60">@{member.username} · {member.role === "owner" ? "负责人" : "店员"}</p>
+              <p className="text-sm text-ink/60">@{member.username} · {member.role === "owner" ? t("负责人") : t("店员")}</p>
             </div>
             <button
-              title="移除成员"
+              title={t("移除成员")}
               className="focus-ring grid size-9 shrink-0 place-items-center rounded text-coral hover:bg-coral/10"
               onClick={async () => {
                 await Api.removeShopMember(member.id);
@@ -512,6 +505,7 @@ function MembersPanel({ shopId, members, onChanged }: { shopId: string; members:
 }
 
 function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () => void | Promise<void> }) {
+  const { t } = useI18n();
   const url = `${window.location.origin}/t/${encodeURIComponent(machine.shopPublicId)}/${encodeURIComponent(machine.publicId)}`;
   const hasPassword = Boolean(machine.hasPassword);
   const [name, setName] = useState(machine.name);
@@ -538,14 +532,14 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
   return (
     <article className="grid gap-4 rounded border border-ink/10 bg-surface p-4 sm:grid-cols-[160px_1fr]">
       <div className="grid w-fit place-items-center self-start justify-self-center rounded-2xl bg-white p-3">
-        <QRCodeSVG value={url} size={132} title={`${machine.name} 登录二维码`} />
+        <QRCodeSVG value={url} size={132} title={t("{name} 登录二维码", { name: machine.name })} />
       </div>
       <div className="min-w-0">
         <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
           <div className="flex items-center gap-2">
-            <input aria-label="设备名称" className="focus-ring min-h-10 flex-1 rounded border border-ink/10 bg-panel px-3 font-semibold" value={name} onChange={(event) => setName(event.target.value)} />
+            <input aria-label={t("设备名称")} className="focus-ring min-h-10 flex-1 rounded border border-ink/10 bg-panel px-3 font-semibold" value={name} onChange={(event) => setName(event.target.value)} />
             {hasPassword && !clearPassword && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded bg-mint/10 px-2 py-1 text-xs font-medium text-mint" title="已配置加密密码">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded bg-mint/10 px-2 py-1 text-xs font-medium text-mint" title={t("已配置加密密码")}>
                 <Lock size={12} />
                 E2EE
               </span>
@@ -553,20 +547,19 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
           </div>
           <label className="flex min-h-11 items-center gap-2 rounded-2xl bg-panel px-3 text-sm font-medium">
             <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-            可使用
-          </label>
+            {t("可使用")}</label>
         </div>
-        <input className="focus-ring mt-2 min-h-10 w-full rounded border border-ink/10 bg-panel px-3 text-sm" placeholder="连接地址（可选，如 https://... 或 wss://...）" value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} />
+        <input className="focus-ring mt-2 min-h-10 w-full rounded border border-ink/10 bg-panel px-3 text-sm" placeholder={t("连接地址（可选，如 https://... 或 wss://...）")} value={hinataUrl} onChange={(event) => setHinataUrl(event.target.value)} />
         <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
           <input
             type="password"
             className="focus-ring min-h-10 rounded border border-ink/10 bg-panel px-3 text-sm disabled:opacity-50"
             placeholder={
               clearPassword
-                ? "将清除当前加密密码"
+                ? t("将清除当前加密密码")
                 : hasPassword
-                  ? "已配置加密密码（留空保持不变）"
-                  : "加密密码（可选）"
+                  ? t("已配置加密密码（留空保持不变）")
+                  : t("加密密码（可选）")
             }
             value={hinataPassword}
             onChange={(event) => {
@@ -588,7 +581,7 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
                 setHinataPassword("");
               }}
             >
-              {clearPassword ? "取消清除" : "清除密码"}
+              {clearPassword ? t("取消清除") : t("清除密码")}
             </button>
           )}
         </div>
@@ -598,8 +591,7 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <button className="focus-ring rounded border border-ink/20 px-3 py-2 text-sm font-medium hover:bg-panel" onClick={() => navigator.clipboard.writeText(url)}>
-            复制登录地址
-          </button>
+            {t("复制登录地址")}</button>
           <button
             className="focus-ring flex items-center gap-2 rounded bg-mint px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
             disabled={!isChanged || busy}
@@ -624,19 +616,17 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
             }}
           >
             <Save size={16} />
-            保存
-          </button>
+            {t("保存")}</button>
           <button
             className="focus-ring flex items-center gap-2 rounded border border-coral/30 px-3 py-2 text-sm font-medium text-coral hover:bg-coral/10"
             onClick={async () => {
-              if (!confirm("确定删除这台设备吗？")) return;
+              if (!confirm(t("确定删除这台设备吗？"))) return;
               await Api.deleteMachine(machine.id);
               await onChanged();
             }}
           >
             <Trash2 size={16} />
-            删除
-          </button>
+            {t("删除")}</button>
         </div>
       </div>
     </article>
@@ -644,26 +634,26 @@ function MachineCard({ machine, onChanged }: { machine: Machine; onChanged: () =
 }
 
 function EventsPanel({ events }: { events: LoginEvent[] }) {
+  const { t, errorText, locale } = useI18n();
   return (
     <section className="rounded border border-ink/10 bg-panel p-5">
       <h2 className="flex items-center gap-2 font-semibold">
         <Activity size={18} />
-        最近登录记录
-      </h2>
+        {t("最近登录记录")}</h2>
       <div className="mt-4 grid gap-2">
         {events.length === 0 ? (
-          <p className="rounded border border-dashed border-ink/20 bg-surface p-4 text-sm text-ink/60">暂无记录。</p>
+          <p className="rounded border border-dashed border-ink/20 bg-surface p-4 text-sm text-ink/60">{t("暂无记录。")}</p>
         ) : (
           events.map((event) => (
             <article key={event.id} className="rounded border border-ink/10 bg-surface p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-medium">{event.machineName || "设备"} · {event.result === "sent" ? "成功" : event.result === "blocked" ? "已拦截" : "失败"}</p>
-                <time className="text-xs text-ink/50">{new Date(event.createdAt).toLocaleString()}</time>
+                <p className="font-medium">{event.machineName || t("设备")} · {event.result === "sent" ? t("成功") : event.result === "blocked" ? t("已拦截") : t("失败")}</p>
+                <time className="text-xs text-ink/50">{new Date(event.createdAt).toLocaleString(locale === "zh" ? "zh-CN" : "en")}</time>
               </div>
               <p className="mt-1 text-sm text-ink/60">
-                {event.userName || "未知用户"} · {event.cardLabel || "卡片"}{typeof event.distanceMeters === "number" ? ` · 约 ${Math.round(event.distanceMeters)}m` : ""}
+                {event.userName || t("未知用户")} · {event.cardLabel || t("卡片")}{typeof event.distanceMeters === "number" ? t(" · 约 {distance}m", { distance: Math.round(event.distanceMeters) }) : ""}
               </p>
-              {event.errorMessage && <p className="mt-1 text-sm text-coral">{event.errorMessage}</p>}
+              {event.errorMessage && <p className="mt-1 text-sm text-coral">{errorText(event.errorMessage)}</p>}
             </article>
           ))
         )}

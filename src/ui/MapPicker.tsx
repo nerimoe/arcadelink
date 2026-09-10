@@ -1,5 +1,6 @@
+import { useI18n } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
-import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { CircleMarker, MapContainer, TileLayer, ZoomControl, useMap, useMapEvents } from "react-leaflet";
 import { Loader2, LocateFixed } from "lucide-react";
 import { gcj02ToWgs84, outOfChina, wgs84ToGcj02 } from "../coord";
 
@@ -15,6 +16,7 @@ const chinaDefaultCenter: [number, number] = [31.2304, 121.4737]; // Shanghai
 const worldDefaultCenter: [number, number] = [35.681236, 139.767125]; // Tokyo
 
 export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
+  const { t, errorText, locale } = useI18n();
   const [provider, setProvider] = useState<MapProvider>(() => {
     if (latitude !== null && longitude !== null && outOfChina(latitude, longitude)) {
       return "osm";
@@ -106,8 +108,7 @@ export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
                 : "text-ink/70 hover:text-ink"
             }`}
           >
-            高德 (国内)
-          </button>
+            {t("高德 (国内)")}</button>
           <button
             type="button"
             onClick={() => handleSwitchProvider("osm")}
@@ -117,8 +118,7 @@ export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
                 : "text-ink/70 hover:text-ink"
             }`}
           >
-            Carto (国际)
-          </button>
+            {t("Carto (国际)")}</button>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -127,32 +127,31 @@ export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
               type="button"
               onClick={handleCenterMarker}
               className="focus-ring inline-flex items-center rounded border border-ink/15 bg-surface px-2 py-1 text-ink/70 hover:bg-ink/5 hover:text-ink"
-              title="将地图视角移动到当前标记点"
+              title={t("将地图视角移动到当前标记点")}
             >
-              居中标记
-            </button>
+              {t("居中标记")}</button>
           )}
           <button
             type="button"
             onClick={handleLocate}
             disabled={locating}
             className="focus-ring inline-flex items-center gap-1.5 rounded border border-ink/15 bg-surface px-2.5 py-1 font-medium text-ink hover:bg-ink/5 disabled:opacity-50"
-            title="获取当前 GPS 定位并填入"
+            title={t("获取当前 GPS 定位并填入")}
           >
             {locating ? <Loader2 size={13} className="animate-spin" /> : <LocateFixed size={13} />}
-            <span>{locating ? "定位中..." : "定位当前位置"}</span>
+            <span>{locating ? t("定位中...") : t("定位当前位置")}</span>
           </button>
         </div>
       </div>
 
       {locateError && (
         <div className="flex items-center justify-between border-b border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-800 dark:text-amber-200">
-          <span>{locateError}</span>
+          <span>{errorText(locateError)}</span>
           <button
             type="button"
             onClick={() => setLocateError(null)}
             className="ml-2 font-bold opacity-60 hover:opacity-100"
-            title="关闭提示"
+            title={t("关闭提示")}
           >
             &times;
           </button>
@@ -163,12 +162,14 @@ export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
         center={initialCenter}
         zoom={latitude !== null && longitude !== null ? 16 : 14}
         scrollWheelZoom={true}
+        zoomControl={false}
         className="h-64 w-full"
       >
+        <ZoomControl key={locale} zoomInTitle={t("放大")} zoomOutTitle={t("缩小")} />
         {provider === "amap" ? (
           <TileLayer
             key="amap"
-            attribution='&copy; <a href="https://www.amap.com/" target="_blank" rel="noreferrer">高德地图</a>'
+            attribution={`&copy; <a href="https://www.amap.com/" target="_blank" rel="noreferrer">${t("高德地图")}</a>`}
             url="https://wprd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}"
             subdomains={["1", "2", "3", "4"]}
             maxZoom={18}

@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -7,13 +8,15 @@ import { passkeyErrorMessage } from "../passkeys";
 import { useAuth } from "./AuthContext";
 
 export function AuthPage() {
+  const { t, errorText } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const { refresh } = useAuth();
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [munetBusy, setMunetBusy] = useState(false);
-  const error = passkeyError || new URLSearchParams(location.search).get("error");
+  const queryError = new URLSearchParams(location.search).get("error");
+  const error = passkeyError || (queryError === "MuNET 授权已取消" ? null : queryError);
   const redirectTo = new URLSearchParams(location.search).get("next") || "/cards";
 
   const loginWithPasskey = async () => {
@@ -34,9 +37,9 @@ export function AuthPage() {
   return (
     <section className="mx-auto max-w-[480px] py-10 sm:py-20">
       <div className="session-task !mt-0">
-        <h1>登录 ArcadeLink</h1>
-        <p className="session-subtitle">连接账号，随时管理你的卡片</p>
-        {error && <p role="alert" className="session-error">{error}</p>}
+        <h1>{t("登录 ArcadeLink")}</h1>
+        <p className="session-subtitle">{t("连接账号，随时管理你的卡片")}</p>
+        {error && <p role="alert" className="session-error">{errorText(error)}</p>}
       </div>
       <div className="session-actions">
         <button className="session-action primary" disabled={busy || munetBusy} onClick={() => {
@@ -44,11 +47,11 @@ export function AuthPage() {
           window.location.assign(`/api/auth/munet?next=${encodeURIComponent(redirectTo)}`);
         }}>
           {munetBusy && <Loader2 size={20} className="animate-spin" />}
-          {munetBusy ? "正在连接 MuNET…" : "使用 MuNET 登录"}
+          {munetBusy ? t("正在连接 MuNET…") : t("使用 MuNET 登录")}
         </button>
         <button className="session-action" disabled={busy || munetBusy || !browserSupportsWebAuthn()} onClick={() => void loginWithPasskey()}>
           {busy && <Loader2 size={20} className="animate-spin" />}
-          {busy ? "正在验证 Passkey…" : "使用 Passkey 登录"}
+          {busy ? t("正在验证 Passkey…") : t("使用 Passkey 登录")}
         </button>
       </div>
     </section>

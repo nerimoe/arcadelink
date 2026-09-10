@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Fingerprint, KeyRound, Plus, Store, Trash2 } from "lucide-react";
 import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
@@ -7,6 +8,7 @@ import { passkeyErrorMessage } from "../passkeys";
 import { RequireLogin } from "./RequireLogin";
 
 export function SettingsPage() {
+  const { t, errorText } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const [identities, setIdentities] = useState<AuthIdentity[]>([]);
@@ -52,18 +54,18 @@ export function SettingsPage() {
     <RequireLogin>
       <section className="mx-auto grid max-w-2xl gap-6">
         <div>
-          <h1 className="text-2xl font-semibold">账号设置</h1>
-          <p className="mt-3 text-ink/65">管理登录身份与设备上的 Passkey。</p>
-          {error && <p className="mt-4 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p>}
+          <h1 className="text-2xl font-semibold">{t("账号设置")}</h1>
+          <p className="mt-3 text-ink/65">{t("管理登录身份与设备上的 Passkey。")}</p>
+          {error && <p className="mt-4 rounded border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{errorText(error)}</p>}
         </div>
 
         <section className="rounded border border-ink/10 bg-panel p-5">
-          <h2 className="flex items-center gap-2 font-semibold"><KeyRound size={18} />登录身份</h2>
+          <h2 className="flex items-center gap-2 font-semibold"><KeyRound size={18} />{t("登录身份")}</h2>
           <div className="mt-5 divide-y divide-ink/10">
             {identities.map((identity) => (
               <div key={identity.id} className="py-4">
                 <p className="font-medium">{identity.provider === "munet" ? "MuNET" : identity.provider}</p>
-                <p className="mt-1 text-sm text-ink/60">{identity.displayName || identity.username || "已连接"}</p>
+                <p className="mt-1 text-sm text-ink/60">{identity.displayName || identity.username || t("已连接")}</p>
               </div>
             ))}
           </div>
@@ -79,8 +81,7 @@ export function SettingsPage() {
                 onClick={addPasskey}
               >
                 <Plus size={16} />
-                添加 Passkey
-              </button>
+                {t("添加 Passkey")}</button>
             )}
           </div>
           <div className="mt-5 divide-y divide-ink/10">
@@ -90,12 +91,12 @@ export function SettingsPage() {
                   <p className="font-semibold">{passkey.name}</p>
                   <p className="mt-1 text-sm text-ink/60">
                     {passkey.providerName && passkey.providerName !== passkey.name ? `${passkey.providerName} · ` : ""}
-                    {passkey.backedUp ? "已同步" : "此设备"}
+                    {passkey.backedUp ? t("已同步") : t("此设备")}
                   </p>
                 </div>
                 <button
                   className="focus-ring grid size-9 shrink-0 place-items-center rounded text-coral hover:bg-coral/10"
-                  title="删除 Passkey"
+                  title={t("删除 Passkey")}
                   onClick={async () => {
                     await Api.deletePasskey(passkey.id);
                     await load();
@@ -105,20 +106,19 @@ export function SettingsPage() {
                 </button>
               </div>
             ))}
-            {!browserSupportsWebAuthn() && <p className="text-sm text-ink/60">当前设备不支持 Passkey。</p>}
+            {!browserSupportsWebAuthn() && <p className="text-sm text-ink/60">{t("当前设备不支持 Passkey。")}</p>}
           </div>
-          {setup && <Link className="mt-4 inline-flex text-sm font-medium text-mint" to={next} replace>稍后设置</Link>}
+          {setup && <Link className="mt-4 inline-flex text-sm font-medium text-mint" to={next} replace>{t("稍后设置")}</Link>}
         </section>
 
         <section className="rounded border border-ink/10 bg-panel p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="flex items-center gap-2 font-semibold"><Store size={18} />店家管理</h2>
-              <p className="mt-1 text-sm text-ink/60">管理你的店铺和设备</p>
+              <h2 className="flex items-center gap-2 font-semibold"><Store size={18} />{t("店家管理")}</h2>
+              <p className="mt-1 text-sm text-ink/60">{t("管理你的店铺和设备")}</p>
             </div>
             <Link to="/merchant" className="focus-ring inline-flex min-h-9 items-center justify-center rounded bg-ink px-4 text-sm font-medium text-canvas">
-              前往管理
-            </Link>
+              {t("前往管理")}</Link>
           </div>
         </section>
       </section>

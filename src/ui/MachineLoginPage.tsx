@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { LanguageSelect, useI18n } from "../i18n";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Check, ChevronRight, Loader2, LogOut } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
-import { Api, type Card, type PublicMachine } from "../api";
+import { Api, ApiError, type Card, type PublicMachine } from "../api";
 import { passkeyErrorMessage } from "../passkeys";
 import { useAuth } from "./AuthContext";
 
@@ -12,8 +13,10 @@ export function MachineLoginPage() {
   const ticket = searchParams.get("ticket") || paramTicket || publicId;
   const queryError = searchParams.get("error");
   const expired = window.location.pathname === "/m/expired" || searchParams.get("expired") === "1";
-  if (expired || !ticket) return <MachineExpiredPage />;
-  return <MachineSessionLoader key={ticket} ticket={ticket} queryError={queryError} />;
+  return <>
+    {expired || !ticket ? <MachineExpiredPage /> : <MachineSessionLoader key={ticket} ticket={ticket} queryError={queryError} />}
+    <div className="mx-auto flex max-w-[480px] justify-end px-5 pb-6"><LanguageSelect /></div>
+  </>;
 }
 
 function MachineSessionLoader({ ticket, queryError }: { ticket: string; queryError: string | null }) {
@@ -30,7 +33,7 @@ function MachineSessionLoader({ ticket, queryError }: { ticket: string; queryErr
       .then((result) => { if (!cancelled) setPage({ kind: "session", machine: result.machine }); })
       .catch((caught) => {
         if (cancelled) return;
-        if (caught instanceof Error && caught.message.includes("会话已失效")) {
+        if (caught instanceof ApiError && caught.sessionExpired) {
           window.location.replace("/m/expired");
           return;
         }
@@ -47,6 +50,7 @@ function MachineSessionLoader({ ticket, queryError }: { ticket: string; queryErr
 }
 
 function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMachine; ticket: string; queryError: string | null }) {
+  const { t, errorText } = useI18n();
   const { user, refresh, logout } = useAuth();
   const [cards, setCards] = useState<Card[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
@@ -58,10 +62,13 @@ function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMa
   const [munetBusy, setMunetBusy] = useState(false);
   const [reload, setReload] = useState(0);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const shownQueryError = useRef<string | null>(null);
 
   useEffect(() => {
-    if (queryError) window.alert(queryError);
-  }, [queryError]);
+    if (!queryError || queryError === "MuNET 授权已取消" || shownQueryError.current === queryError) return;
+    shownQueryError.current = queryError;
+    window.alert(errorText(queryError));
+  }, [queryError, errorText]);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,7 +96,7 @@ function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMa
       await refresh();
     } catch (caught) {
       const message = passkeyErrorMessage(caught);
-      if (message) window.alert(message);
+      if (message) window.alert(errorText(message));
     } finally {
       setPasskeyBusy(false);
     }
@@ -113,14 +120,14 @@ function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMa
       setCountdown(3);
       setStatus("sent");
     } catch (caught) {
-      if (caught instanceof Error && (caught.message.includes("会话已失效") || caught.message.includes("缺少会话凭证"))) {
+      if (caught instanceof ApiError && caught.sessionExpired) {
         window.location.replace("/m/expired");
         return;
       }
       setStatus("idle");
       setActiveCardId(null);
       const message = friendlyLoginError(caught);
-      window.alert(message);
+      window.alert(errorText(message));
     }
   };
 
@@ -155,7 +162,7 @@ function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMa
         </header>
 
       <div className="session-task">
-        {user && !cardsLoading && !cardsError && <div className="session-task-row"><h2>选择卡片</h2><button type="button" className="session-logout-button" disabled={busy} aria-label="退出账号" onClick={() => { if (window.confirm("确定退出当前账号吗？")) void logout().catch(() => window.alert("退出账号失败，请重试")); }}><LogOut size={20} strokeWidth={2.2} /></button></div>}
+        {user && !cardsLoading && !cardsError && <div className="session-task-row"><h2>{t("选择卡片")}</h2><button type="button" className="session-logout-button" disabled={busy} aria-label={t("退出账号")} onClick={() => { if (window.confirm(t("退出账号？"))) void logout().catch(() => window.alert(t("退出账号失败，请重试"))); }}><LogOut size={20} strokeWidth={2.2} /></button></div>}
       </div>
 
       {!user ? (
@@ -165,29 +172,29 @@ function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMa
             window.location.assign(`/api/auth/munet?next=${encodeURIComponent(munetNext)}`);
           }}>
             {munetBusy && <Loader2 size={20} className="animate-spin" />}
-            {munetBusy ? "正在连接 MuNET…" : "使用 MuNET 登录"}
+            {munetBusy ? t("正在连接 MuNET…") : t("使用 MuNET 登录")}
           </button>
           <button className="session-action" disabled={passkeyBusy || munetBusy || !browserSupportsWebAuthn()} onClick={() => void loginWithPasskey()}>
             {passkeyBusy && <Loader2 size={20} className="animate-spin" />}
-            {passkeyBusy ? "正在验证 Passkey…" : "使用 Passkey 登录"}
+            {passkeyBusy ? t("正在验证 Passkey…") : t("使用 Passkey 登录")}
           </button>
-          {!browserSupportsWebAuthn() && <p className="session-subtitle text-center">当前浏览器不支持 Passkey，请使用 MuNET 登录</p>}
+          {!browserSupportsWebAuthn() && <p className="session-subtitle text-center">{t("当前浏览器不支持 Passkey，请使用 MuNET 登录")}</p>}
         </div>
       ) : cardsLoading ? (
-        <div className="flex justify-center" role="status" aria-label="正在加载卡片">
+        <div className="flex justify-center" role="status" aria-label={t("正在加载卡片")}>
           <Loader2 size={28} className="animate-spin" aria-hidden="true" />
         </div>
       ) : cardsError ? (
         <div className="text-center" role="status">
-          <h2 className="text-xl font-semibold">无法加载卡片</h2>
-          <p className="session-subtitle">{cardsError}</p>
-          <button className="session-action mt-6 w-full" onClick={() => setReload(value => value + 1)}>重新加载卡片</button>
+          <h2 className="text-xl font-semibold">{t("无法加载卡片")}</h2>
+          <p className="session-subtitle">{errorText(cardsError)}</p>
+          <button className="session-action mt-6 w-full" onClick={() => setReload(value => value + 1)}>{t("重新加载卡片")}</button>
         </div>
       ) : cards.length ? (
         <div className="credential-list">
           {cards.map(card => {
             const active = activeCardId === card.id;
-            const detail = active && status === "locating" ? "确认位置…" : active && status === "sending" ? "正在登录…" : active && status === "sent" ? "已登录" : `尾号 ${card.accessCode.slice(-4)}`;
+            const detail = active && status === "locating" ? t("确认位置…") : active && status === "sending" ? t("正在登录…") : active && status === "sent" ? t("已登录") : t("尾号 {digits}", { digits: card.accessCode.slice(-4) });
             return <button key={card.id} className="credential-row" disabled={busy} data-active={active} onClick={() => void loginWithCard(card.id)}>
               <span className="min-w-0"><span className="credential-name">{card.label}</span><span className="credential-detail" aria-live={active ? "polite" : "off"}>{detail}</span></span>
               {active && status === "sent" ? <Check size={22} className="text-mint" /> : active && busy ? <Loader2 size={20} className="animate-spin text-mint" /> : <ChevronRight size={20} className="text-ink/30" />}
@@ -196,8 +203,8 @@ function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMa
         </div>
       ) : (
         <div className="text-center">
-          <p className="session-subtitle">还没有可用卡片，请先在 ArcadeLink 添加卡片</p>
-          <button className="session-action mt-6 w-full" onClick={() => setReload(value => value + 1)}>重新加载卡片</button>
+          <p className="session-subtitle">{t("还没有可用卡片，请先在 ArcadeLink 添加卡片")}</p>
+          <button className="session-action mt-6 w-full" onClick={() => setReload(value => value + 1)}>{t("重新加载卡片")}</button>
         </div>
       )}
     </section>
@@ -205,24 +212,28 @@ function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMa
 }
 
 function MachineLoadingPage() {
-  return <section className="machine-session session-status" aria-busy="true" role="status" aria-label="正在加载">
+  const { t } = useI18n();
+  return <section className="machine-session session-status" aria-busy="true" role="status" aria-label={t("正在加载")}>
     <Loader2 size={28} className="animate-spin" aria-hidden="true" />
   </section>;
 }
 
 function MachineFailurePage({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { t, errorText } = useI18n();
   return <section className="machine-session session-status">
-    <h1>无法进入机台会话</h1><p>{message}</p>
-    <button className="session-action" onClick={onRetry}>重试</button>
+    <h1>{t("无法进入机台会话")}</h1><p>{errorText(message)}</p>
+    <button className="session-action" onClick={onRetry}>{t("重试")}</button>
   </section>;
 }
 
 function MachineExpiredPage() {
-  return <section className="machine-session session-status"><h1>本次会话已失效</h1><p>请重新碰一下 NFC 或重新扫描二维码。</p></section>;
+  const { t } = useI18n();
+  return <section className="machine-session session-status"><h1>{t("本次会话已失效")}</h1><p>{t("请重新碰一下 NFC 或重新扫描二维码。")}</p></section>;
 }
 
 function MachineCompletedPage() {
-  return <section className="machine-session session-status"><h1>本次登录已完成</h1><p>可以关闭此页面</p></section>;
+  const { t } = useI18n();
+  return <section className="machine-session session-status"><h1>{t("本次登录已完成")}</h1><p>{t("可以关闭此页面")}</p></section>;
 }
 
 function friendlyLoginError(err: unknown): string {

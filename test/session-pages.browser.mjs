@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+const page = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true, locale: 'zh-CN' });
 const origin = process.env.PREVIEW_ORIGIN || 'http://localhost:5173';
 const output = process.env.SCREENSHOT_DIR || '/tmp/arcadelink-session-pages';
 mkdirSync(output, { recursive: true });
