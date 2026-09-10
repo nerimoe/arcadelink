@@ -134,6 +134,8 @@ input::placeholder {
 .session-action { display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 58px; border-radius: 999px; padding: 14px 24px; background: rgb(var(--color-ink) / .065); font-size: 18px; font-weight: 600; text-align: center; }
 .session-action.primary { background: var(--color-mint); color: #fff; }
 .session-action:disabled { opacity: .5; cursor: not-allowed; }
+.session-action:not(:disabled):active, .credential-row:not(:disabled):active, .session-logout-button:not(:disabled):active { transform: scale(.97); filter: brightness(.92); }
+.session-action, .credential-row, .session-logout-button { transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease; }
 .session-action:focus-visible, .credential-row:focus-visible { outline: 3px solid var(--color-mint); outline-offset: 4px; }
 .credential-list { border-radius: 28px; background: var(--color-panel); overflow: hidden; }
 .credential-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 84px; padding: 16px 24px; text-align: left; }
