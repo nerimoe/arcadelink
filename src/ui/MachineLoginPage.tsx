@@ -1,7 +1,7 @@
 import { LanguageSelect, useI18n } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Check, ChevronRight, Loader2, LogOut } from "lucide-react";
+import { Check, ChevronRight, Fingerprint, Loader2, LogOut } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
 import { Api, ApiError, type Card, type PublicMachine } from "../api";
 import { passkeyErrorMessage } from "../passkeys";
@@ -171,11 +171,11 @@ function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMa
             setMunetBusy(true);
             window.location.assign(`/api/auth/munet?next=${encodeURIComponent(munetNext)}`);
           }}>
-            {munetBusy && <Loader2 size={20} className="animate-spin" />}
+            {munetBusy ? <Loader2 size={24} className="shrink-0 animate-spin" aria-hidden="true" /> : <img src="/munet-logo.png" alt="" width={24} height={24} className="size-6 shrink-0 object-contain" />}
             {munetBusy ? t("正在连接 MuNET…") : t("使用 MuNET 登录")}
           </button>
           <button className="session-action" disabled={passkeyBusy || munetBusy || !browserSupportsWebAuthn()} onClick={() => void loginWithPasskey()}>
-            {passkeyBusy && <Loader2 size={20} className="animate-spin" />}
+            {passkeyBusy ? <Loader2 size={24} className="shrink-0 animate-spin" aria-hidden="true" /> : <Fingerprint size={24} className="shrink-0" aria-hidden="true" />}
             {passkeyBusy ? t("正在验证 Passkey…") : t("使用 Passkey 登录")}
           </button>
           {!browserSupportsWebAuthn() && <p className="session-subtitle text-center">{t("当前浏览器不支持 Passkey，请使用 MuNET 登录")}</p>}
