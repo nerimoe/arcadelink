@@ -72,8 +72,7 @@ export function MachineLoginPage() {
       await refresh();
     } catch (caught) {
       const message = passkeyErrorMessage(caught);
-      if (/cancel|abort|取消/i.test(message)) return;
-      window.alert(message);
+      if (message) window.alert(message);
     } finally {
       setPasskeyBusy(false);
     }
