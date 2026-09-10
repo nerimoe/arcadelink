@@ -143,13 +143,13 @@ export function MachineLoginPage() {
       ) : !error ? <div className="machine-hero session-skeleton" role="status" aria-label="正在加载机台信息" /> : null}
 
       <div className="session-task">
-        {user && !completed ? <div className="session-task-row"><h2>选择卡片</h2><button type="button" className="session-logout-button" aria-label="退出账号" onClick={() => { if (window.confirm("确定退出当前账号吗？")) void logout(); }}><LogOut size={20} strokeWidth={2.2} /></button></div> : !machine ? error ? <h2>无法进入机台会话</h2> : <h2>正在加载…</h2> : completed && <h2>{title}</h2>}
+        {!expired && (user && !completed ? <div className="session-task-row"><h2>选择卡片</h2><button type="button" className="session-logout-button" aria-label="退出账号" onClick={() => { if (window.confirm("确定退出当前账号吗？")) void logout(); }}><LogOut size={20} strokeWidth={2.2} /></button></div> : !machine ? error ? <h2>无法进入机台会话</h2> : <h2>正在加载…</h2> : completed && <h2>{title}</h2>)}
         <div aria-live="polite" aria-atomic="true">
           {completed && <p className="session-subtitle">可以关闭此页面</p>}
         </div>
       </div>
 
-      {machine && !completed && !loading && (!user ? (
+      {!expired && machine && !completed && !loading && (!user ? (
         <div className="session-actions">
           <button className="session-action primary" disabled={passkeyBusy || munetBusy} onClick={() => {
             setMunetBusy(true);
