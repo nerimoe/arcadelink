@@ -24,7 +24,6 @@ export function MachineLoginPage() {
   const [munetBusy, setMunetBusy] = useState(false);
   const [reload, setReload] = useState(0);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
-  const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   useEffect(() => {
     if (expired) {
@@ -37,12 +36,18 @@ export function MachineLoginPage() {
       return;
     }
     if (!ticket) {
-      setError("本次会话已失效");
+      window.location.replace("/m/expired");
       return;
     }
     Api.publicMachine(ticket)
       .then((result) => setMachine(result.machine))
-      .catch(() => setError("这台机台暂时不可用，请稍后重试"));
+      .catch((caught) => {
+        if (caught instanceof Error && caught.message.includes("会话已失效")) {
+          window.location.replace("/m/expired");
+          return;
+        }
+        setError("这台机台暂时不可用，请稍后重试");
+      });
   }, [ticket, queryError, expired]);
 
   useEffect(() => {
@@ -61,7 +66,6 @@ export function MachineLoginPage() {
 
   const loginWithPasskey = async () => {
     setPasskeyBusy(true);
-    setPasskeyError(null);
     try {
       const response = await startAuthentication({ optionsJSON: await Api.passkeyOptions() });
       await Api.loginWithPasskey(response);
