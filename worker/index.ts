@@ -6,7 +6,7 @@ import { HTTPException } from "hono/http-exception";
 import type { Context } from "hono";
 import { z } from "zod";
 import { attachUser, createSession, destroySession, requireAdmin, requireUser } from "./auth";
-import { encryptSecret, decryptSecret, randomToken } from "./crypto";
+import { encryptSecret, decryptSecret, randomToken, sha256 } from "./crypto";
 import { canAccessShop, getMachineByPublicId, listShopsForUser } from "./db";
 import { checkLocation, clampShopRadius } from "./geo";
 import { allowedOrigins, assertAllowedOrigin, clientIp, jsonError } from "./http";
@@ -46,8 +46,8 @@ const app = new Hono<AppBindings>();
 const oauthStateCookie = "arcadelink_munet_state";
 const oauthNextCookie = "arcadelink_munet_next";
 
-function shopHeroPath(publicId: string): string {
-  return `/api/shops/${encodeURIComponent(publicId)}/hero`;
+function shopHeroPath(publicId: string, hash: string): string {
+  return `/api/shops/${encodeURIComponent(publicId)}/hero?v=${hash}`;
 }
 
 app.use(
@@ -79,24 +79,33 @@ app.use("*", attachUser);
 app.get("/api/health", (c) => c.json({ ok: true }));
 
 app.get("/api/shops/:publicId/hero", async (c) => {
-  const row = await c.env.DB.prepare("SELECT hero_data AS heroData FROM shops WHERE public_id = ?")
+  const row = await c.env.DB.prepare("SELECT hero_data AS heroData, COALESCE(hero_hash, 'original') AS version FROM shops WHERE public_id = ?")
     .bind(c.req.param("publicId"))
-    .first<{ heroData: string | null }>();
+    .first<{ heroData: string | null; version: string }>();
+  const version = c.req.query("v");
+  // Never serve new bytes at an old immutable URL. Only the current cover is stored.
+  const missing = () => new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
+  if (!row || (version !== undefined && version !== row.version)) return missing();
   const match = row?.heroData?.match(/^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/]+={0,2})$/);
-  if (!match) return new Response(null, { status: 404 });
+  if (!match) return missing();
 
   const mimeType = match[1];
   const encoded = match[2];
-  if (!mimeType || !encoded) return new Response(null, { status: 404 });
+  if (!mimeType || !encoded) return missing();
+
+  const headers = {
+    "cache-control": version ? "public, max-age=31536000, immutable" : "public, max-age=60, must-revalidate",
+    "content-type": mimeType,
+    etag: `"${row.version}"`,
+  };
+  const validators = c.req.header("if-none-match")?.split(",").map((value) => value.trim().replace(/^W\//, ""));
+  if (validators?.some((value) => value === "*" || value === headers.etag)) {
+    return new Response(null, { status: 304, headers });
+  }
 
   const binary = atob(encoded);
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  return new Response(bytes, {
-    headers: {
-      "cache-control": "public, max-age=60, must-revalidate",
-      "content-type": mimeType,
-    },
-  });
+  return new Response(bytes, { headers });
 });
 
 app.get("/.well-known/apple-app-site-association", (c) => {
@@ -523,15 +532,16 @@ app.post("/api/merchant/shops", async (c) => {
   const body = createShopSchema.parse(await c.req.json());
   const shopId = crypto.randomUUID();
   const publicId = randomToken(8);
+  const heroHash = body.heroData ? await sha256(body.heroData) : null;
   await c.env.DB.batch([
     c.env.DB.prepare(
-      "INSERT INTO shops (id, public_id, name, hero_data, latitude, longitude, radius_meters, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    ).bind(shopId, publicId, body.name, body.heroData ?? null, body.latitude, body.longitude, clampShopRadius(body.radiusMeters), user.id),
+      "INSERT INTO shops (id, public_id, name, hero_data, hero_hash, latitude, longitude, radius_meters, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    ).bind(shopId, publicId, body.name, body.heroData ?? null, heroHash, body.latitude, body.longitude, clampShopRadius(body.radiusMeters), user.id),
     c.env.DB.prepare("INSERT INTO shop_members (id, shop_id, user_id, role) VALUES (?, ?, ?, 'owner')")
       .bind(crypto.randomUUID(), shopId, user.id),
   ]);
   const { heroData, ...shop } = body;
-  return c.json({ shop: { id: shopId, publicId, ...shop, heroUrl: heroData ? shopHeroPath(publicId) : null } }, 201);
+  return c.json({ shop: { id: shopId, publicId, ...shop, heroUrl: heroHash ? shopHeroPath(publicId, heroHash) : null } }, 201);
 });
 
 app.patch("/api/merchant/shops/:id", async (c) => {
@@ -555,6 +565,7 @@ app.patch("/api/merchant/shops/:id", async (c) => {
     `UPDATE shops
      SET name = COALESCE(?, name),
          hero_data = CASE WHEN ? THEN ? ELSE hero_data END,
+         hero_hash = CASE WHEN ? THEN ? ELSE hero_hash END,
          latitude = COALESCE(?, latitude),
          longitude = COALESCE(?, longitude),
          radius_meters = COALESCE(?, radius_meters),
@@ -565,6 +576,8 @@ app.patch("/api/merchant/shops/:id", async (c) => {
       body.name ?? null,
       body.heroData !== undefined ? 1 : 0,
       body.heroData ?? null,
+      body.heroData !== undefined ? 1 : 0,
+      body.heroData ? await sha256(body.heroData) : null,
       body.latitude ?? null,
       body.longitude ?? null,
       radius,
@@ -573,7 +586,7 @@ app.patch("/api/merchant/shops/:id", async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, public_id AS publicId, name, CASE WHEN hero_data IS NULL OR hero_data = '' THEN NULL ELSE '/api/shops/' || public_id || '/hero' END AS heroUrl, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
+    "SELECT id, public_id AS publicId, name, CASE WHEN hero_data IS NULL OR hero_data = '' THEN NULL ELSE '/api/shops/' || public_id || '/hero?v=' || COALESCE(hero_hash, 'original') END AS heroUrl, latitude, longitude, radius_meters AS radiusMeters, radius_meters, created_at AS createdAt, updated_at AS updatedAt FROM shops WHERE id = ?",
   )
     .bind(shopId)
     .first();

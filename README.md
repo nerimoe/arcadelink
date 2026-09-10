@@ -64,3 +64,5 @@ Production deploys one Worker with Workers Assets:
 
 - `https://link.neri.moe/` serves the React app from `dist/`.
 - `https://link.neri.moe/api/*` runs the Worker API first.
+
+Shop covers use versioned `heroUrl` values and immutable HTTP caching. Replacing a cover changes its version; old version URLs never serve the replacement. Deploy with `bun run deploy` so the D1 migrations (including the cover hash column) run before the Worker update.
