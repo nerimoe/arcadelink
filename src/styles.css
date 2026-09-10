@@ -127,9 +127,9 @@ input::placeholder {
 .session-task-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .session-logout-button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: rgb(var(--color-ink) / .08); color: rgb(var(--color-ink) / .7); }
 .session-error { margin: 16px 0 0; color: var(--color-coral); font-size: 16px; line-height: 1.5; }
-.session-expired { margin-top: 96px; text-align: center; }
-.session-expired h1 { font-size: 30px; font-weight: 700; }
-.session-expired p { margin-top: 12px; color: rgb(var(--color-ink) / .68); font-size: 17px; }
+.session-status { min-height: calc(100dvh - 100px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.session-status h1 { font-size: 30px; font-weight: 700; }
+.session-status p { color: rgb(var(--color-ink) / .68); font-size: 17px; }
 .session-actions { display: grid; gap: 14px; }
 .session-action { display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 58px; border-radius: 999px; padding: 14px 24px; background: rgb(var(--color-ink) / .065); font-size: 18px; font-weight: 600; text-align: center; }
 .session-action.primary { background: var(--color-mint); color: #fff; }
@@ -149,8 +149,6 @@ button.credential-row:not(:disabled):active { background: rgb(var(--color-ink) /
 .credential-row:disabled:not([data-active=true]) { opacity: .45; }
 .credential-name { display: block; font-size: 21px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .credential-detail { display: block; margin-top: 4px; font-size: 17px; line-height: 1.35; color: rgb(var(--color-ink) / .65); }
-.session-skeleton { background: rgb(var(--color-ink) / .05); min-height: 84px; }
-.machine-hero.session-skeleton { min-height: 200px; }
 @media (max-width: 640px) {
   .site-header { padding: 20px 16px 0; }
   .site-header-inner { align-items: stretch; flex-direction: column; gap: 20px; }

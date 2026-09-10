@@ -12,56 +12,73 @@ export function MachineLoginPage() {
   const ticket = searchParams.get("ticket") || paramTicket || publicId;
   const queryError = searchParams.get("error");
   const expired = window.location.pathname === "/m/expired" || searchParams.get("expired") === "1";
-  const { user, loading, refresh, logout } = useAuth();
-  const [machine, setMachine] = useState<PublicMachine | null>(null);
+  if (expired || !ticket) return <MachineExpiredPage />;
+  return <MachineSessionLoader key={ticket} ticket={ticket} queryError={queryError} />;
+}
+
+function MachineSessionLoader({ ticket, queryError }: { ticket: string; queryError: string | null }) {
+  const { loading } = useAuth();
+  const [page, setPage] = useState<
+    { kind: "loading" } | { kind: "failed"; message: string } | { kind: "session"; machine: PublicMachine }
+  >({ kind: "loading" });
+  const [machineAttempt, setMachineAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPage({ kind: "loading" });
+    Api.publicMachine(ticket)
+      .then((result) => { if (!cancelled) setPage({ kind: "session", machine: result.machine }); })
+      .catch((caught) => {
+        if (cancelled) return;
+        if (caught instanceof Error && caught.message.includes("会话已失效")) {
+          window.location.replace("/m/expired");
+          return;
+        }
+        setPage({ kind: "failed", message: caught instanceof TypeError ? "网络连接失败，请检查网络后重试" : "这台机台暂时不可用，请稍后重试" });
+      });
+    return () => { cancelled = true; };
+  }, [ticket, machineAttempt]);
+
+  switch (page.kind) {
+    case "loading": return <MachineLoadingPage />;
+    case "failed": return <MachineFailurePage message={page.message} onRetry={() => { setPage({ kind: "loading" }); setMachineAttempt(value => value + 1); }} />;
+    case "session": return loading ? <MachineLoadingPage /> : <MachineSessionPage machine={page.machine} ticket={ticket} queryError={queryError} />;
+  }
+}
+
+function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMachine; ticket: string; queryError: string | null }) {
+  const { user, refresh, logout } = useAuth();
   const [cards, setCards] = useState<Card[]>([]);
-  const [cardsLoading, setCardsLoading] = useState(false);
+  const [cardsLoading, setCardsLoading] = useState(true);
+  const [cardsError, setCardsError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "locating" | "sending" | "sent" | "destroyed">("idle");
   const [countdown, setCountdown] = useState(3);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [heroFailed, setHeroFailed] = useState(false);
   const [munetBusy, setMunetBusy] = useState(false);
   const [reload, setReload] = useState(0);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   useEffect(() => {
-    if (expired) {
-      setError("本次会话已失效");
-      return;
-    }
-    setHeroFailed(false);
-    if (queryError) {
-      setError(queryError);
-      return;
-    }
-    if (!ticket) {
-      window.location.replace("/m/expired");
-      return;
-    }
-    Api.publicMachine(ticket)
-      .then((result) => setMachine(result.machine))
-      .catch((caught) => {
-        if (caught instanceof Error && caught.message.includes("会话已失效")) {
-          window.location.replace("/m/expired");
-          return;
-        }
-        setError("这台机台暂时不可用，请稍后重试");
-      });
-  }, [ticket, queryError, expired]);
+    if (queryError) window.alert(queryError);
+  }, [queryError]);
 
   useEffect(() => {
-    if (!user || !machine) {
+    let cancelled = false;
+    setCardsError(null);
+    if (!user) {
       setCards([]);
       setCardsLoading(false);
       return;
     }
     setCardsLoading(true);
     Api.cards().then((result) => {
+      if (cancelled) return;
       const activeCards = result.cards.filter((card) => !card.disabledAt);
       setCards(activeCards);
-    }).catch(() => setError("无法加载卡片"))
-      .finally(() => setCardsLoading(false));
+    }).catch(() => { if (!cancelled) setCardsError("请检查网络后重试"); })
+      .finally(() => { if (!cancelled) setCardsLoading(false); });
+    return () => { cancelled = true; };
   }, [machine, user, reload]);
 
   const loginWithPasskey = async () => {
@@ -80,11 +97,6 @@ export function MachineLoginPage() {
 
   const loginWithCard = async (cardId: string) => {
     if (status !== "idle") return;
-    if (!ticket || expired) {
-      window.location.replace("/m/expired");
-      return;
-    }
-    setError(null);
     setActiveCardId(cardId);
     setStatus("locating");
     try {
@@ -108,9 +120,7 @@ export function MachineLoginPage() {
       setStatus("idle");
       setActiveCardId(null);
       const message = friendlyLoginError(caught);
-      if (message === "请到店再进行登录" || message === "需要定位权限才能确认你在店内" || message.includes("机台暂时不可用")) {
-        window.alert(message);
-      } else setError(message);
+      window.alert(message);
     }
   };
 
@@ -131,11 +141,11 @@ export function MachineLoginPage() {
   const munetNext = ticket ? `/m?ticket=${encodeURIComponent(ticket)}` : "/m";
   const busy = status !== "idle";
   const completed = status === "destroyed";
-  const title = completed ? "本次登录已完成" : "";
+
+  if (completed) return <MachineCompletedPage />;
 
   return (
-    <section className="machine-session" aria-busy={loading || (!machine && !error)}>
-      {expired ? <div className="session-expired"><h1>本次会话已失效</h1><p>请重新碰一下 NFC 或重新扫描二维码。</p></div> : machine ? (
+    <section className="machine-session">
         <header className="machine-hero">
           {machine.shop.heroUrl && !heroFailed && <img src={machine.shop.heroUrl} alt="" decoding="async" onError={() => setHeroFailed(true)} />}
           <div className="machine-hero-info">
@@ -143,16 +153,12 @@ export function MachineLoginPage() {
             <p>{machine.name}</p>
           </div>
         </header>
-      ) : !error ? <div className="machine-hero session-skeleton" role="status" aria-label="正在加载机台信息" /> : null}
 
       <div className="session-task">
-        {!expired && (machine && user && !completed ? <div className="session-task-row"><h2>选择卡片</h2><button type="button" className="session-logout-button" aria-label="退出账号" onClick={() => { if (window.confirm("确定退出当前账号吗？")) void logout(); }}><LogOut size={20} strokeWidth={2.2} /></button></div> : !machine ? error ? <h2>无法进入机台会话</h2> : <h2>正在加载…</h2> : completed && <h2>{title}</h2>)}
-        <div aria-live="polite" aria-atomic="true">
-          {completed && <p className="session-subtitle">可以关闭此页面</p>}
-        </div>
+        {user && !cardsLoading && !cardsError && <div className="session-task-row"><h2>选择卡片</h2><button type="button" className="session-logout-button" disabled={busy} aria-label="退出账号" onClick={() => { if (window.confirm("确定退出当前账号吗？")) void logout().catch(() => window.alert("退出账号失败，请重试")); }}><LogOut size={20} strokeWidth={2.2} /></button></div>}
       </div>
 
-      {!expired && machine && !completed && !loading && (!user ? (
+      {!user ? (
         <div className="session-actions">
           <button className="session-action primary" disabled={passkeyBusy || munetBusy} onClick={() => {
             setMunetBusy(true);
@@ -168,8 +174,14 @@ export function MachineLoginPage() {
           {!browserSupportsWebAuthn() && <p className="session-subtitle text-center">当前浏览器不支持 Passkey，请使用 MuNET 登录</p>}
         </div>
       ) : cardsLoading ? (
-        <div className="credential-list" role="status" aria-label="正在加载卡片">
-          {[0, 1, 2].map(row => <div key={row} className="credential-row session-skeleton" />)}
+        <div className="flex justify-center" role="status" aria-label="正在加载卡片">
+          <Loader2 size={28} className="animate-spin" aria-hidden="true" />
+        </div>
+      ) : cardsError ? (
+        <div className="text-center" role="status">
+          <h2 className="text-xl font-semibold">无法加载卡片</h2>
+          <p className="session-subtitle">{cardsError}</p>
+          <button className="session-action mt-6 w-full" onClick={() => setReload(value => value + 1)}>重新加载卡片</button>
         </div>
       ) : cards.length ? (
         <div className="credential-list">
@@ -185,11 +197,32 @@ export function MachineLoginPage() {
       ) : (
         <div className="text-center">
           <p className="session-subtitle">还没有可用卡片，请先在 ArcadeLink 添加卡片</p>
-          <button className="session-action mt-6 w-full" onClick={() => { setError(null); setReload(value => value + 1); }}>重新加载卡片</button>
+          <button className="session-action mt-6 w-full" onClick={() => setReload(value => value + 1)}>重新加载卡片</button>
         </div>
-      ))}
+      )}
     </section>
   );
+}
+
+function MachineLoadingPage() {
+  return <section className="machine-session session-status" aria-busy="true" role="status" aria-label="正在加载">
+    <Loader2 size={28} className="animate-spin" aria-hidden="true" />
+  </section>;
+}
+
+function MachineFailurePage({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return <section className="machine-session session-status">
+    <h1>无法进入机台会话</h1><p>{message}</p>
+    <button className="session-action" onClick={onRetry}>重试</button>
+  </section>;
+}
+
+function MachineExpiredPage() {
+  return <section className="machine-session session-status"><h1>本次会话已失效</h1><p>请重新碰一下 NFC 或重新扫描二维码。</p></section>;
+}
+
+function MachineCompletedPage() {
+  return <section className="machine-session session-status"><h1>本次登录已完成</h1><p>可以关闭此页面</p></section>;
 }
 
 function friendlyLoginError(err: unknown): string {
