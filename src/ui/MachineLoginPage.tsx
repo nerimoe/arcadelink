@@ -1,4 +1,4 @@
-import { LanguageSelect, useI18n } from "../i18n";
+import { useI18n } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Check, ChevronRight, Fingerprint, Loader2, LogOut } from "lucide-react";
@@ -13,10 +13,7 @@ export function MachineLoginPage() {
   const ticket = searchParams.get("ticket") || paramTicket || publicId;
   const queryError = searchParams.get("error");
   const expired = window.location.pathname === "/m/expired" || searchParams.get("expired") === "1";
-  return <>
-    {expired || !ticket ? <MachineExpiredPage /> : <MachineSessionLoader key={ticket} ticket={ticket} queryError={queryError} />}
-    <div className="mx-auto flex max-w-[480px] justify-end px-5 pb-6"><LanguageSelect /></div>
-  </>;
+  return expired || !ticket ? <MachineExpiredPage /> : <MachineSessionLoader key={ticket} ticket={ticket} queryError={queryError} />;
 }
 
 function MachineSessionLoader({ ticket, queryError }: { ticket: string; queryError: string | null }) {

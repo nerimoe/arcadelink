@@ -1,4 +1,4 @@
-import { LanguageSelect, useI18n } from "../i18n";
+import { useI18n } from "../i18n";
 import { lazy, Suspense, type ReactNode } from "react";
 import { Link, Navigate, NavLink, useLocation, Route, Routes } from "react-router-dom";
 import { Gamepad2, IdCard, LogOut, Shield, Store, UserRound } from "lucide-react";
@@ -28,15 +28,12 @@ function Shell() {
     <div className="min-h-screen bg-canvas text-ink">
       {!machineSession && <header className="site-header">
         <div className="site-header-inner">
-          <div className="flex items-center justify-between gap-3">
-            <Link to="/" className="site-brand focus-ring">
-              <span className="grid size-10 place-items-center rounded-2xl bg-mint text-white">
-                <Gamepad2 size={20} />
-              </span>
-              ArcadeLink
-            </Link>
-            <LanguageSelect />
-          </div>
+          <Link to="/" className="site-brand focus-ring">
+            <span className="grid size-10 place-items-center rounded-2xl bg-mint text-white">
+              <Gamepad2 size={20} />
+            </span>
+            ArcadeLink
+          </Link>
           <nav className="site-navigation" aria-label={t("主导航")}>
             <NavItem to="/cards" icon={<IdCard size={16} />} label={t("卡片")} />
             {(user?.hasShops || user?.role === "admin") && <NavItem to="/merchant" icon={<Store size={16} />} label={t("店家")} />}
