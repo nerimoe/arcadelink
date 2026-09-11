@@ -115,7 +115,7 @@ input::placeholder {
 
 .session-main { padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 28px); }
 .machine-session { max-width: 480px; margin: 0 auto; }
-.machine-hero { overflow: hidden; border-radius: 32px; background: var(--color-panel); box-shadow: var(--shadow-soft); }
+.machine-hero { overflow: hidden; border-radius: 32px; background: var(--color-panel); box-shadow: 0 0 0 1px rgb(var(--color-ink) / .06), 0 8px 24px rgb(0 0 0 / .08); }
 .machine-hero > img { display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover; }
 .machine-hero-info { position: relative; isolation: isolate; overflow: hidden; padding: 22px 24px 24px; }
 .machine-hero-info > img { position: absolute; z-index: -1; inset: -64px; width: calc(100% + 128px); height: calc(100% + 128px); max-width: none; object-fit: cover; filter: blur(64px); opacity: .22; pointer-events: none; }
