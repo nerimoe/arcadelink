@@ -116,8 +116,9 @@ input::placeholder {
 .session-main { padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 28px); }
 .machine-session { max-width: 480px; margin: 0 auto; }
 .machine-hero { overflow: hidden; border-radius: 32px; background: var(--color-panel); box-shadow: var(--shadow-soft); }
-.machine-hero > img { display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover; border-bottom: 1px solid rgb(var(--color-ink) / .08); }
-.machine-hero-info { padding: 22px 24px 24px; }
+.machine-hero > img { display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover; }
+.machine-hero-info { position: relative; isolation: isolate; overflow: hidden; padding: 22px 24px 24px; }
+.machine-hero-info > img { position: absolute; z-index: -1; inset: -64px; width: calc(100% + 128px); height: calc(100% + 128px); max-width: none; object-fit: cover; filter: blur(64px); opacity: .22; pointer-events: none; }
 .machine-hero h1 { margin: 0; font-size: clamp(26px, 6vw, 30px); font-weight: 700; line-height: 1.25; letter-spacing: -.6px; overflow-wrap: anywhere; }
 .machine-hero p { margin-top: 8px; font-size: 19px; font-weight: 500; color: rgb(var(--color-ink) / .65); overflow-wrap: anywhere; }
 .session-task { text-align: center; margin: 52px 0 30px; }

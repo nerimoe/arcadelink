@@ -6,7 +6,7 @@ if (!import.meta.env.DEV) throw new Error('Development preview only');
 const params = new URLSearchParams(location.search);
 const scene = params.get('scene') || 'cards';
 const shop = {id:'shop-demo',publicId:'shopdemo123',name:'月宫',latitude:35,longitude:139,radiusMeters:80,
-  heroUrl: params.has('nohero') ? null : '/test/hero-fixture.svg'};
+  heroUrl: params.has('nohero') ? null : params.get('hero') || '/test/hero-fixture.svg'};
 const cards = ['红黑卡','蓝白卡','Nimo 卡'].map((label,index)=>({id:String(index),label,accessCode:'1234567890123456'+['6958','0225','3317'][index],source:'manual'}));
 const user = {id:'preview',username:'preview',displayName:'预览用户',role:'admin',hasShops:true};
 const machine = {id:'machine-demo',publicId:'machinedemo',shopId:shop.id,shopPublicId:shop.publicId,name:'舞萌',enabled:true,shop};

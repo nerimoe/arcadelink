@@ -156,6 +156,7 @@ function MachineSessionPage({ machine, ticket, queryError }: { machine: PublicMa
         <header className="machine-hero">
           {machine.shop.heroUrl && !heroFailed && <img src={machine.shop.heroUrl} alt="" decoding="async" onError={() => setHeroFailed(true)} />}
           <div className="machine-hero-info">
+            {machine.shop.heroUrl && !heroFailed && <img src={machine.shop.heroUrl} alt="" decoding="async" aria-hidden="true" />}
             <h1>{machine.shop.name}</h1>
             <p>{machine.name}</p>
           </div>
